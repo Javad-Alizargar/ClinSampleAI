@@ -210,28 +210,37 @@ elif study_type == "Two Independent Means":
     # --------------------------------------------------
     with st.expander("📘 When to Use This Design", expanded=True):
         st.markdown("""
-Used when comparing means of two independent groups.
+Used when comparing the means of two independent groups.
 
 Examples:
-• Treatment vs placebo
-• Male vs female comparison
-• Two different interventions
+• Treatment vs placebo  
+• Male vs female comparison  
+• Two different therapies  
 
 Assumptions:
-• Independent groups
-• Approximately normal outcome
-• Similar variance across groups
+• Independent groups  
+• Approximately normal distribution  
+• Similar variance in both groups  
+• Independent observations  
         """)
 
     # --------------------------------------------------
     with st.expander("📐 Mathematical Formula", expanded=True):
 
+        st.write("Primary sample size formula:")
+
         st.latex(r"""
-        n_1 = \left(1 + \frac{1}{r}\right)
-        \left( \frac{(Z_{\alpha} + Z_{\beta}) \cdot SD_{pooled}}{\Delta} \right)^2
+        n_1 =
+        \left(1 + \frac{1}{r}\right)
+        \left(
+        \frac{(Z_{\alpha} + Z_{\beta}) \cdot SD_{pooled}}
+        {\Delta}
+        \right)^2
         """)
 
         st.latex(r"n_2 = r \cdot n_1")
+
+        st.write("Pooled SD formula:")
 
         st.latex(r"""
         SD_{pooled} =
@@ -241,18 +250,15 @@ Assumptions:
         }
         """)
 
+        st.write("Z definitions:")
+
+        st.latex(r"Z_{\alpha} = \Phi^{-1}(1-\alpha/2)")
+        st.latex(r"Z_{\beta} = \Phi^{-1}(power)")
+
     # --------------------------------------------------
-    with st.expander("🧮 Calculate Pooled SD from Two Groups", expanded=False):
+    with st.expander("🧮 Compute Pooled SD from Pilot or Literature", expanded=False):
 
-        st.markdown("""
-If you have:
-
-• Mean and SD for Group 1  
-• Mean and SD for Group 2  
-• Sample sizes from pilot study  
-
-You can compute pooled SD.
-        """)
+        st.write("Enter pilot or literature values:")
 
         n1_pilot = st.number_input("Pilot n1", min_value=2, value=20)
         sd1 = st.number_input("SD Group 1", min_value=0.0001, value=1.0)
@@ -270,29 +276,48 @@ You can compute pooled SD.
             st.success(f"Pooled SD = {round(pooled_sd,4)}")
 
     # --------------------------------------------------
+    with st.expander("🧮 Compute Mean Difference (Δ) from Group Means", expanded=False):
+
+        mean1 = st.number_input("Mean Group 1", value=0.0)
+        mean2 = st.number_input("Mean Group 2", value=0.0)
+
+        if st.button("Compute Δ"):
+
+            delta_raw = mean2 - mean1
+            delta_abs = abs(delta_raw)
+
+            st.write(f"Raw Δ (Mean2 - Mean1) = {round(delta_raw,4)}")
+            st.write(f"Absolute Δ used in calculation = {round(delta_abs,4)}")
+
+    # --------------------------------------------------
     with st.expander("📊 Parameter Guidance", expanded=False):
 
         st.markdown("""
 **SD_pooled**
 
-Represents common within-group variability.
+Represents within-group variability.
 
-Obtain from:
-• Pilot data
-• Previous trials
-• Meta-analysis
+Sources:
+• Randomized controlled trials  
+• Observational studies  
+• Pilot data  
+• Meta-analyses  
 
-If SDs are different:
-Use pooled SD or conservative larger SD.
+If unsure:
+Use conservative (slightly larger) SD.
 
 ---
 
 **Δ (Mean Difference)**
 
-Should be:
-• Clinically meaningful
-• Supported by literature
-• Not arbitrarily small
+Should be clinically meaningful.
+
+Sources:
+• Guidelines  
+• Previous trials  
+• Regulatory thresholds  
+
+Smaller Δ → Larger required sample size.
 
 ---
 
@@ -300,39 +325,36 @@ Should be:
 
 r = n2 / n1
 
-• r = 1 → equal allocation
-• r > 1 → more participants in group 2
-• r < 1 → more participants in group 1
+• r = 1 → equal allocation  
+• r > 1 → more participants in group 2  
+• r < 1 → more participants in group 1  
 
 Unequal allocation increases total sample size.
         """)
 
     # --------------------------------------------------
     st.markdown("---")
-    st.subheader("🎯 Sample Size Planning")
+    st.subheader("🎯 Final Sample Size Planning")
 
-    use_manual_sd = st.checkbox("Use manually entered SD instead of pooled SD")
-
-    if use_manual_sd:
-        sd_planning = st.number_input("Common SD for Planning", min_value=0.0001, value=1.0)
-    else:
-        sd_planning = st.number_input("Enter Pooled SD (from above calculation)", min_value=0.0001, value=1.0)
-
-    delta = st.number_input("Mean Difference (Δ)", min_value=0.0001, value=0.5)
-    ratio = st.number_input("Allocation Ratio (n2/n1)", min_value=0.1, value=1.0)
+    sd_planning = st.number_input("SD for Planning", min_value=0.0001, value=1.0)
+    delta = st.number_input("Mean Difference (Δ) for Planning", min_value=0.0001, value=0.5)
+    ratio = st.number_input("Allocation Ratio (n2 / n1)", min_value=0.1, value=1.0)
 
     if st.button("Calculate Sample Size"):
+
+        delta_used = abs(delta)
 
         result = calculate_two_independent_means(
             alpha,
             power,
             sd_planning,
-            delta,
+            delta_used,
             ratio,
             two_sided,
             dropout_rate
         )
 
+        # Z values
         if two_sided:
             Z_alpha = stats.norm.ppf(1 - alpha/2)
         else:
@@ -346,19 +368,25 @@ Unequal allocation increases total sample size.
         st.write(f"Zβ = {round(Z_beta,4)}")
 
         st.latex(rf"""
-        n_1 = \left(1 + \frac{{1}}{{{ratio}}}\right)
-        \left( \frac{{({round(Z_alpha,4)} + {round(Z_beta,4)}) \cdot {sd_planning}}}{{{delta}}} \right)^2
+        n_1 =
+        \left(1 + \frac{{1}}{{{ratio}}}\right)
+        \left(
+        \frac{{({round(Z_alpha,4)} + {round(Z_beta,4)}) \cdot {sd_planning}}}
+        {{{delta_used}}}
+        \right)^2
         """)
 
         st.success(f"Group 1 Required: {result['n_group1']}")
         st.success(f"Group 2 Required: {result['n_group2']}")
         st.write("Total Sample Size:", result["n_total"])
 
+        st.markdown("### 📄 Copy for Thesis")
+
         paragraph = paragraph_two_independent_means(
             alpha,
             power,
             sd_planning,
-            delta,
+            delta_used,
             ratio,
             two_sided,
             dropout_rate,
@@ -366,7 +394,6 @@ Unequal allocation increases total sample size.
             result["n_group2"]
         )
 
-        st.markdown("### 📄 Copy for Thesis")
         st.code(paragraph)
 
 # ==========================================================

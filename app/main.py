@@ -784,3 +784,173 @@ Avoid overestimating f.
         )
 
         st.code(paragraph)
+# ==========================================================
+# ONE PROPORTION (Single-Group Proportion Test)
+# ==========================================================
+elif study_type == "One Proportion":
+
+    import scipy.stats as stats
+    import math
+
+    st.header("One Proportion (Single-Group Proportion Test)")
+
+    # --------------------------------------------------
+    with st.expander("📘 When to Use This Design", expanded=True):
+        st.markdown("""
+Used when testing whether a single population proportion differs from a known or reference value.
+
+Examples:
+• Is vaccine uptake different from 70% target?
+• Is smoking prevalence different from national 20%?
+• Is complication rate different from historical benchmark?
+
+Design:
+• One group
+• Binary outcome (yes/no)
+• Compared to reference proportion p₀
+        """)
+
+    # --------------------------------------------------
+    with st.expander("📐 Mathematical Formula (Normal Approximation)", expanded=True):
+
+        st.latex(r"""
+        n =
+        \frac{
+        \left(
+        Z_{\alpha} \sqrt{p_0(1-p_0)}
+        +
+        Z_{\beta} \sqrt{p_1(1-p_1)}
+        \right)^2
+        }
+        {(p_1 - p_0)^2}
+        """)
+
+        st.write("Where:")
+
+        st.latex(r"p_0 = \text{reference proportion}")
+        st.latex(r"p_1 = \text{expected true proportion}")
+        st.latex(r"\Delta = p_1 - p_0")
+
+        st.latex(r"Z_{\alpha} = \Phi^{-1}(1-\alpha/2)")
+        st.latex(r"Z_{\beta} = \Phi^{-1}(power)")
+
+        st.write("For one-sided test:")
+        st.latex(r"Z_{\alpha} = \Phi^{-1}(1-\alpha)")
+
+    # --------------------------------------------------
+    with st.expander("🧮 Compute Risk Difference (Δ) from Two Proportions", expanded=False):
+
+        st.markdown("""
+If you know:
+
+• Historical/reference proportion (p₀)
+• Expected proportion in your study (p₁)
+
+Then:
+
+Δ = p₁ − p₀
+        """)
+
+        p0_calc = st.number_input("Reference Proportion (p₀)", min_value=0.0001, max_value=0.9999, value=0.2)
+        p1_calc = st.number_input("Expected Proportion (p₁)", min_value=0.0001, max_value=0.9999, value=0.3)
+
+        if st.button("Compute Δ (Risk Difference)"):
+
+            delta_raw = p1_calc - p0_calc
+            delta_abs = abs(delta_raw)
+
+            st.write(f"Raw Δ = {round(delta_raw,4)}")
+            st.write(f"Absolute Δ used in planning = {round(delta_abs,4)}")
+
+    # --------------------------------------------------
+    with st.expander("📊 Parameter Guidance (How to Choose p₀ and p₁)", expanded=False):
+
+        st.markdown("""
+**p₀ (Reference proportion)**
+
+Sources:
+• National registry
+• Historical control data
+• Published prevalence
+• Clinical target benchmark
+
+---
+
+**p₁ (Expected proportion)**
+
+Should be:
+• Clinically meaningful improvement or change
+• Supported by literature or pilot
+• Realistic
+
+Smaller difference between p₁ and p₀ → larger required sample size.
+
+---
+
+Avoid:
+Choosing p₁ unrealistically far from p₀.
+        """)
+
+    # --------------------------------------------------
+    with st.expander("🧮 Understanding Z-values", expanded=False):
+
+        st.write("Common values:")
+        st.write("• α = 0.05 (two-sided) → Zα ≈ 1.96")
+        st.write("• Power = 0.80 → Zβ ≈ 0.84")
+        st.write("• Power = 0.90 → Zβ ≈ 1.28")
+
+    # --------------------------------------------------
+    st.markdown("---")
+    st.subheader("🎯 Final Sample Size Planning")
+
+    p0 = st.number_input("Reference Proportion (p₀)", min_value=0.0001, max_value=0.9999, value=0.2)
+    p1 = st.number_input("Expected Proportion (p₁)", min_value=0.0001, max_value=0.9999, value=0.3)
+
+    if st.button("Calculate Sample Size"):
+
+        delta_used = abs(p1 - p0)
+
+        result = calculate_one_proportion(
+            alpha,
+            power,
+            p0,
+            p1,
+            two_sided,
+            dropout_rate
+        )
+
+        if two_sided:
+            Z_alpha = stats.norm.ppf(1 - alpha/2)
+        else:
+            Z_alpha = stats.norm.ppf(1 - alpha)
+
+        Z_beta = stats.norm.ppf(power)
+
+        st.markdown("### 🔎 Intermediate Values")
+
+        st.write(f"Zα = {round(Z_alpha,4)}")
+        st.write(f"Zβ = {round(Z_beta,4)}")
+
+        st.latex(rf"""
+        n =
+        \frac{
+        \left(
+        {round(Z_alpha,4)}\sqrt{{{p0}(1-{p0})}}
+        +
+        {round(Z_beta,4)}\sqrt{{{p1}(1-{p1})}}
+        \right)^2
+        }
+        {{{delta_used}^2}}
+        """)
+
+        st.success(f"Required Sample Size: {result['n_required']}")
+        st.write("Before Dropout Adjustment:", result["n_before_dropout"])
+
+        st.markdown("### 📄 Copy for Thesis / Manuscript")
+
+        st.code(f"""
+Sample size was calculated for a one-sample proportion test with α={alpha} and power={power}.
+Assuming a reference proportion of {p0} and an expected proportion of {p1},
+the required sample size was {result['n_required']} participants
+(after adjusting for {dropout_rate*100:.1f}% anticipated dropout).
+        """)

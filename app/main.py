@@ -202,34 +202,162 @@ Smaller Δ → larger sample size
 # ==========================================================
 elif study_type == "Two Independent Means":
 
+    import scipy.stats as stats
+    import math
+
     st.header("Two Independent Means")
 
-    st.subheader("Mathematical Formula")
+    # --------------------------------------------------
+    with st.expander("📘 When to Use This Design", expanded=True):
+        st.markdown("""
+Used when comparing the means of two independent groups.
 
-    st.latex(r"""
-    n_1 = (1 + \frac{1}{r})
-    \left( \frac{(Z_{\alpha} + Z_{\beta}) \cdot SD}{\Delta} \right)^2
-    """)
+Examples:
+• Comparing blood pressure between treatment and placebo groups  
+• Comparing BMI between smokers and non-smokers  
 
-    st.latex(r"n_2 = r \cdot n_1")
+Design assumptions:
+• Two independent groups  
+• Approximately normally distributed outcome  
+• Equal or similar SD in both groups  
+• Independent observations  
+        """)
 
-    st.latex(r"r = \frac{n_2}{n_1}")
+    # --------------------------------------------------
+    with st.expander("📐 Mathematical Formula", expanded=True):
 
-    sd = st.number_input("Common SD", 0.0001, value=1.0)
-    delta = st.number_input("Mean Difference (Δ)", 0.0001, value=0.5)
-    ratio = st.number_input("Allocation Ratio (n2/n1)", 0.1, value=1.0)
+        st.write("Sample size for Group 1:")
+
+        st.latex(r"""
+        n_1 = \left(1 + \frac{1}{r}\right)
+        \left( \frac{(Z_{\alpha} + Z_{\beta}) \cdot SD}{\Delta} \right)^2
+        """)
+
+        st.write("Sample size for Group 2:")
+
+        st.latex(r"""
+        n_2 = r \cdot n_1
+        """)
+
+        st.write("Where:")
+
+        st.latex(r"r = \frac{n_2}{n_1} \quad \text{(allocation ratio)}")
+        st.latex(r"SD = \text{common standard deviation}")
+        st.latex(r"\Delta = \text{mean difference between groups}")
+
+        st.write("Z values defined as:")
+
+        st.latex(r"Z_{\alpha} = \Phi^{-1}(1-\alpha/2)")
+        st.latex(r"Z_{\beta} = \Phi^{-1}(power)")
+
+    # --------------------------------------------------
+    with st.expander("📊 Parameter Explanation and How to Obtain Them", expanded=False):
+
+        st.markdown("""
+**Standard Deviation (SD)**
+
+Represents within-group variability.
+
+How to obtain:
+• Previous randomized trials  
+• Observational cohort studies  
+• Pilot study  
+• Meta-analysis  
+
+If group SDs differ slightly:
+Use pooled or conservative larger SD.
+
+---
+
+**Mean Difference (Δ)**
+
+This is the expected or clinically meaningful difference between groups.
+
+Should be:
+• Based on clinical importance  
+• Supported by prior literature  
+• Justified in protocol  
+
+Smaller Δ → Larger required sample size
+
+---
+
+**Allocation Ratio (r)**
+
+Defined as:
+
+r = n2 / n1
+
+• r = 1 → equal group sizes  
+• r > 1 → more participants in Group 2  
+• r < 1 → more participants in Group 1  
+
+Unequal allocation increases total sample size.
+        """)
+
+    # --------------------------------------------------
+    with st.expander("🧮 Understanding Z-values", expanded=False):
+
+        st.write("Common values:")
+
+        st.write("• α = 0.05 (two-sided) → Zα ≈ 1.96")
+        st.write("• Power = 0.80 → Zβ ≈ 0.84")
+        st.write("• Power = 0.90 → Zβ ≈ 1.28")
+
+    # --------------------------------------------------
+    st.markdown("---")
+    st.subheader("🎯 Sample Size Calculation")
+
+    sd = st.number_input("Common SD", min_value=0.0001, value=1.0)
+    delta = st.number_input("Mean Difference (Δ)", min_value=0.0001, value=0.5)
+    ratio = st.number_input("Allocation Ratio (n2 / n1)", min_value=0.1, value=1.0)
 
     if st.button("Calculate Sample Size"):
 
-        result = calculate_two_independent_means(alpha, power, sd, delta, ratio, two_sided, dropout_rate)
+        result = calculate_two_independent_means(
+            alpha,
+            power,
+            sd,
+            delta,
+            ratio,
+            two_sided,
+            dropout_rate
+        )
 
-        st.success(f"Group 1: {result['n_group1']} | Group 2: {result['n_group2']}")
-        st.write("Total:", result["n_total"])
+        # Calculate intermediate Z-values
+        if two_sided:
+            Z_alpha = stats.norm.ppf(1 - alpha/2)
+        else:
+            Z_alpha = stats.norm.ppf(1 - alpha)
+
+        Z_beta = stats.norm.ppf(power)
+
+        st.markdown("### 🔎 Intermediate Values")
+
+        st.write(f"Zα = {round(Z_alpha,4)}")
+        st.write(f"Zβ = {round(Z_beta,4)}")
+
+        st.latex(rf"""
+        n_1 = \left(1 + \frac{{1}}{{{ratio}}}\right)
+        \left( \frac{{({round(Z_alpha,4)} + {round(Z_beta,4)}) \cdot {sd}}}{{{delta}}} \right)^2
+        """)
+
+        st.success(f"Group 1 Required: {result['n_group1']}")
+        st.success(f"Group 2 Required: {result['n_group2']}")
+        st.write("Total Sample Size:", result["n_total"])
+
+        st.markdown("### 📄 Copy for Thesis / Manuscript")
 
         paragraph = paragraph_two_independent_means(
-            alpha, power, sd, delta,
-            ratio, two_sided, dropout_rate,
-            result["n_group1"], result["n_group2"]
+            alpha,
+            power,
+            sd,
+            delta,
+            ratio,
+            two_sided,
+            dropout_rate,
+            result["n_group1"],
+            result["n_group2"]
         )
 
         st.code(paragraph)

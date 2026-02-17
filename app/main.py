@@ -607,130 +607,137 @@ elif study_type == "One-Way ANOVA":
     # --------------------------------------------------
     with st.expander("📘 When to Use This Design", expanded=True):
         st.markdown("""
-Used when comparing a continuous outcome across **3 or more independent groups**.
+Used when comparing a continuous outcome across 3 or more independent groups.
 
 Examples:
 • LDL cholesterol across 3 diet regimens  
-• Pain scores across 4 treatment arms  
-• Blood pressure across 3 drug doses  
+• Pain score across 4 treatment arms  
 
-Core assumptions:
+Assumptions:
 • Independent groups  
-• Approximately normal outcome within groups  
-• Similar variances across groups (homoscedasticity)  
+• Approximate normal distribution  
+• Similar variance across groups  
         """)
 
     # --------------------------------------------------
-    with st.expander("📐 Mathematical Foundations (Effect Size + Power Target)", expanded=True):
+    with st.expander("📐 Mathematical Foundations", expanded=True):
 
-        st.write("ANOVA planning uses Cohen’s f (standardized effect size).")
+        st.write("Cohen’s f (effect size for ANOVA):")
 
-        st.write("Relationship to eta-squared (η²):")
         st.latex(r"f = \sqrt{\frac{\eta^2}{1-\eta^2}}")
 
-        st.write("Interpretation guidelines (Cohen):")
-        st.write("• 0.10 = small effect")
-        st.write("• 0.25 = medium effect")
-        st.write("• 0.40 = large effect")
+        st.write("Power model solved using F-test framework:")
 
-        st.write("Power calculation uses an F-test model internally (Statsmodels):")
         st.latex(r"N = \text{solve\_power}(f,\ \alpha,\ \text{power},\ k)")
 
     # --------------------------------------------------
-    with st.expander("🧮 Compute Cohen’s f from Group Means + Common SD (Recommended)", expanded=False):
+    with st.expander("🧮 Compute Common SD from Group SDs", expanded=False):
 
         st.markdown("""
-Most users can obtain **group means** and an approximate **common SD** from:
-• pilot study summary table  
-• published literature tables  
-• registry summary statistics  
+If literature reports SD separately for each group,
+you can compute pooled (common) SD.
 
-Assumption for this estimator:
-• roughly equal group sizes (planning stage)  
-• similar SD across groups  
-
-Estimator:
-1) grand mean:  μ̄ = (Σ μᵢ)/k  
-2) between-mean variance:  V = (Σ (μᵢ − μ̄)²)/k  
-3) Cohen’s f:  f = √V / SD
+Formula:
         """)
 
-        st.latex(r"\bar{\mu} = \frac{\sum_{i=1}^{k}\mu_i}{k}")
-        st.latex(r"V = \frac{\sum_{i=1}^{k}(\mu_i-\bar{\mu})^2}{k}")
+        st.latex(r"""
+        SD_{pooled} =
+        \sqrt{
+        \frac{\sum (n_i - 1)SD_i^2}
+        {\sum (n_i - 1)}
+        }
+        """)
+
+        k_sd = st.number_input("Number of Groups (for SD pooling)", min_value=2, value=3)
+
+        ns = []
+        sds = []
+
+        for i in range(int(k_sd)):
+            ns.append(st.number_input(f"Group {i+1} sample size (n{i+1})", min_value=2, value=20, key=f"anova_n_{i}"))
+            sds.append(st.number_input(f"Group {i+1} SD (SD{i+1})", min_value=0.0001, value=1.0, key=f"anova_sd_{i}"))
+
+        if st.button("Compute Common SD"):
+
+            numerator = sum((ns[i]-1)*(sds[i]**2) for i in range(len(ns)))
+            denominator = sum((ns[i]-1) for i in range(len(ns)))
+
+            pooled_sd = math.sqrt(numerator / denominator)
+
+            st.success(f"Common (Pooled) SD = {round(pooled_sd,4)}")
+
+            st.write("Interpretation:")
+            st.write("• Use this SD for Cohen's f estimation")
+            st.write("• Conservative approach: slightly inflate SD")
+
+    # --------------------------------------------------
+    with st.expander("🧮 Compute Cohen’s f from Group Means + Common SD", expanded=False):
+
+        st.markdown("""
+Given group means and common SD:
+
+1) Compute grand mean  
+2) Compute between-group variance  
+3) f = √(Variance_between) / SD
+        """)
+
+        st.latex(r"\bar{\mu} = \frac{\sum \mu_i}{k}")
+        st.latex(r"V = \frac{\sum (\mu_i-\bar{\mu})^2}{k}")
         st.latex(r"f = \frac{\sqrt{V}}{SD}")
 
         k_est = st.number_input("Number of Groups (for f estimation)", min_value=2, value=3)
 
         means = []
+
         for i in range(int(k_est)):
-            means.append(st.number_input(f"Mean of Group {i+1}", value=0.0, key=f"anova_mean_{i}"))
+            means.append(st.number_input(f"Mean Group {i+1}", value=0.0, key=f"anova_mean_{i}"))
 
-        sd_common = st.number_input("Common SD (or typical SD across groups)", min_value=0.0001, value=1.0)
+        sd_common = st.number_input("Common SD for f estimation", min_value=0.0001, value=1.0)
 
-        if st.button("Compute Cohen's f from Means"):
+        if st.button("Compute Cohen's f"):
 
             grand_mean = sum(means) / len(means)
-            ss_between = sum((m - grand_mean) ** 2 for m in means)
-            V = ss_between / len(means)
-            f_calc = math.sqrt(V) / sd_common
+            ss_between = sum((m - grand_mean)**2 for m in means)
+            variance_between = ss_between / len(means)
 
-            st.success(f"Estimated Cohen's f = {round(f_calc, 4)}")
-            st.write("Quick interpretation:")
-            st.write("• < 0.10 = very small / small")
-            st.write("• around 0.25 = moderate")
-            st.write("• > 0.40 = large")
+            f_calc = math.sqrt(variance_between) / sd_common
 
-    # --------------------------------------------------
-    with st.expander("🧮 Convert η² (or partial η²) to Cohen’s f", expanded=False):
+            st.success(f"Cohen's f = {round(f_calc,4)}")
 
-        st.markdown("""
-If a paper reports η² (eta squared) or partial η², you can convert it directly.
-
-Formula:
-f = √(η² / (1 − η²))
-
-Notes:
-• For planning, using partial η² in the same conversion is common practice.  
-• η² must be between 0 and 1 (non-inclusive).  
-        """)
-
-        st.latex(r"f = \sqrt{\frac{\eta^2}{1-\eta^2}}")
-
-        eta2 = st.number_input("η² (or partial η²)", min_value=0.0001, max_value=0.9999, value=0.06)
-
-        if st.button("Convert η² to f"):
-
-            f_from_eta = math.sqrt(eta2 / (1 - eta2))
-            st.success(f"Cohen's f = {round(f_from_eta, 4)}")
+            st.write("Guidelines:")
+            st.write("• 0.10 = small")
+            st.write("• 0.25 = medium")
+            st.write("• 0.40 = large")
 
     # --------------------------------------------------
-    with st.expander("📊 Parameter Guidance (How to Choose f, SD, and Means)", expanded=False):
+    with st.expander("📊 Parameter Guidance", expanded=False):
 
         st.markdown("""
-**Where do means come from?**  
-• pilot study group summaries  
-• published group summary statistics  
-• clinical thresholds defining expected group differences  
+**Common SD**
 
-**Where does SD come from?**  
-• pooled SD from similar populations  
-• pilot SD (use slightly larger for conservative planning)  
-• meta-analysis pooled SD  
+Sources:
+• Published group SDs (pooled)  
+• Pilot study SDs  
+• Meta-analysis pooled SD  
 
-**Avoid the main failure mode:**  
-Overestimating effect size → underpowered study.
+Avoid:
+Using smallest SD (inflates effect).
 
-If unsure:
-• prefer f = 0.20–0.25 rather than 0.40  
-• prefer slightly larger SD  
-• define Δ implicitly through expected group means (recommended)  
+---
+
+**Cohen’s f**
+
+Derived from:
+• Means + SD  
+• η² from literature  
+• Pilot study effect  
+
+Avoid overestimating f.
         """)
 
     # --------------------------------------------------
     st.markdown("---")
     st.subheader("🎯 Final Sample Size Planning")
-
-    st.write("Enter Cohen’s f directly (or compute it above), then estimate sample size.")
 
     effect_size = st.number_input("Cohen's f for Planning", min_value=0.0001, value=0.25)
     k_groups = st.number_input("Number of Groups (k)", min_value=2, value=3)
@@ -748,10 +755,7 @@ If unsure:
         st.success(f"Total Sample Size: {result['n_total']}")
         st.write("Participants per Group:", result["n_per_group"])
 
-        st.markdown("### 🔎 What the model solved")
-        st.latex(r"N = \text{solve\_power}(f,\ \alpha,\ \text{power},\ k)")
-
-        st.markdown("### 📄 Copy for Thesis / Manuscript")
+        st.markdown("### 📄 Copy for Thesis")
 
         paragraph = paragraph_anova(
             alpha,

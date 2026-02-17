@@ -596,66 +596,171 @@ Smaller Δ → larger sample size.
 
 
 # ==========================================================
-# ONE-WAY ANOVA
+# ONE-WAY ANOVA (k groups)
 # ==========================================================
 elif study_type == "One-Way ANOVA":
 
-    st.header("One-Way ANOVA")
+    import math
 
-    st.subheader("Effect Size Definition")
+    st.header("One-Way ANOVA (k Independent Groups)")
 
-    st.latex(r"""
-    f = \sqrt{\frac{\eta^2}{1 - \eta^2}}
-    """)
+    # --------------------------------------------------
+    with st.expander("📘 When to Use This Design", expanded=True):
+        st.markdown("""
+Used when comparing a continuous outcome across **3 or more independent groups**.
 
-    st.subheader("Power Equation (F-test based)")
+Examples:
+• LDL cholesterol across 3 diet regimens  
+• Pain scores across 4 treatment arms  
+• Blood pressure across 3 drug doses  
 
-    st.latex(r"""
-    N = \text{solve\_power}(f, \alpha, power, k)
-    """)
+Core assumptions:
+• Independent groups  
+• Approximately normal outcome within groups  
+• Similar variances across groups (homoscedasticity)  
+        """)
 
-    st.subheader("Compute Cohen’s f from Group Means")
+    # --------------------------------------------------
+    with st.expander("📐 Mathematical Foundations (Effect Size + Power Target)", expanded=True):
 
-    st.latex(r"\bar{\mu} = \frac{\sum \mu_i}{k}")
-    st.latex(r"SS_{between} = \sum (\mu_i - \bar{\mu})^2")
-    st.latex(r"f = \frac{\sqrt{SS_{between}/k}}{SD}")
+        st.write("ANOVA planning uses Cohen’s f (standardized effect size).")
 
-    k_est = st.number_input("Groups for f Estimation", min_value=2, value=3)
+        st.write("Relationship to eta-squared (η²):")
+        st.latex(r"f = \sqrt{\frac{\eta^2}{1-\eta^2}}")
 
-    means = []
-    for i in range(int(k_est)):
-        m = st.number_input(f"Mean of Group {i+1}", value=0.0, key=f"mean_{i}")
-        means.append(m)
+        st.write("Interpretation guidelines (Cohen):")
+        st.write("• 0.10 = small effect")
+        st.write("• 0.25 = medium effect")
+        st.write("• 0.40 = large effect")
 
-    sd_common = st.number_input("Common SD", min_value=0.0001, value=1.0)
+        st.write("Power calculation uses an F-test model internally (Statsmodels):")
+        st.latex(r"N = \text{solve\_power}(f,\ \alpha,\ \text{power},\ k)")
 
-    if st.button("Compute Cohen's f"):
+    # --------------------------------------------------
+    with st.expander("🧮 Compute Cohen’s f from Group Means + Common SD (Recommended)", expanded=False):
 
-        grand_mean = sum(means) / len(means)
-        ss_between = sum((m - grand_mean) ** 2 for m in means)
-        variance_between = ss_between / len(means)
-        f_calc = math.sqrt(variance_between) / sd_common
+        st.markdown("""
+Most users can obtain **group means** and an approximate **common SD** from:
+• pilot study summary table  
+• published literature tables  
+• registry summary statistics  
 
-        st.success(f"Cohen's f = {round(f_calc,4)}")
+Assumption for this estimator:
+• roughly equal group sizes (planning stage)  
+• similar SD across groups  
 
+Estimator:
+1) grand mean:  μ̄ = (Σ μᵢ)/k  
+2) between-mean variance:  V = (Σ (μᵢ − μ̄)²)/k  
+3) Cohen’s f:  f = √V / SD
+        """)
+
+        st.latex(r"\bar{\mu} = \frac{\sum_{i=1}^{k}\mu_i}{k}")
+        st.latex(r"V = \frac{\sum_{i=1}^{k}(\mu_i-\bar{\mu})^2}{k}")
+        st.latex(r"f = \frac{\sqrt{V}}{SD}")
+
+        k_est = st.number_input("Number of Groups (for f estimation)", min_value=2, value=3)
+
+        means = []
+        for i in range(int(k_est)):
+            means.append(st.number_input(f"Mean of Group {i+1}", value=0.0, key=f"anova_mean_{i}"))
+
+        sd_common = st.number_input("Common SD (or typical SD across groups)", min_value=0.0001, value=1.0)
+
+        if st.button("Compute Cohen's f from Means"):
+
+            grand_mean = sum(means) / len(means)
+            ss_between = sum((m - grand_mean) ** 2 for m in means)
+            V = ss_between / len(means)
+            f_calc = math.sqrt(V) / sd_common
+
+            st.success(f"Estimated Cohen's f = {round(f_calc, 4)}")
+            st.write("Quick interpretation:")
+            st.write("• < 0.10 = very small / small")
+            st.write("• around 0.25 = moderate")
+            st.write("• > 0.40 = large")
+
+    # --------------------------------------------------
+    with st.expander("🧮 Convert η² (or partial η²) to Cohen’s f", expanded=False):
+
+        st.markdown("""
+If a paper reports η² (eta squared) or partial η², you can convert it directly.
+
+Formula:
+f = √(η² / (1 − η²))
+
+Notes:
+• For planning, using partial η² in the same conversion is common practice.  
+• η² must be between 0 and 1 (non-inclusive).  
+        """)
+
+        st.latex(r"f = \sqrt{\frac{\eta^2}{1-\eta^2}}")
+
+        eta2 = st.number_input("η² (or partial η²)", min_value=0.0001, max_value=0.9999, value=0.06)
+
+        if st.button("Convert η² to f"):
+
+            f_from_eta = math.sqrt(eta2 / (1 - eta2))
+            st.success(f"Cohen's f = {round(f_from_eta, 4)}")
+
+    # --------------------------------------------------
+    with st.expander("📊 Parameter Guidance (How to Choose f, SD, and Means)", expanded=False):
+
+        st.markdown("""
+**Where do means come from?**  
+• pilot study group summaries  
+• published group summary statistics  
+• clinical thresholds defining expected group differences  
+
+**Where does SD come from?**  
+• pooled SD from similar populations  
+• pilot SD (use slightly larger for conservative planning)  
+• meta-analysis pooled SD  
+
+**Avoid the main failure mode:**  
+Overestimating effect size → underpowered study.
+
+If unsure:
+• prefer f = 0.20–0.25 rather than 0.40  
+• prefer slightly larger SD  
+• define Δ implicitly through expected group means (recommended)  
+        """)
+
+    # --------------------------------------------------
     st.markdown("---")
+    st.subheader("🎯 Final Sample Size Planning")
 
-    st.subheader("Sample Size Planning")
+    st.write("Enter Cohen’s f directly (or compute it above), then estimate sample size.")
 
     effect_size = st.number_input("Cohen's f for Planning", min_value=0.0001, value=0.25)
-    k_groups = st.number_input("Number of Groups", min_value=2, value=3)
+    k_groups = st.number_input("Number of Groups (k)", min_value=2, value=3)
 
     if st.button("Calculate Sample Size"):
 
-        result = calculate_anova_oneway(alpha, power, effect_size, k_groups, dropout_rate)
+        result = calculate_anova_oneway(
+            alpha,
+            power,
+            effect_size,
+            k_groups,
+            dropout_rate
+        )
 
         st.success(f"Total Sample Size: {result['n_total']}")
-        st.write("Per Group:", result["n_per_group"])
+        st.write("Participants per Group:", result["n_per_group"])
+
+        st.markdown("### 🔎 What the model solved")
+        st.latex(r"N = \text{solve\_power}(f,\ \alpha,\ \text{power},\ k)")
+
+        st.markdown("### 📄 Copy for Thesis / Manuscript")
 
         paragraph = paragraph_anova(
-            alpha, power, effect_size,
-            k_groups, dropout_rate,
-            result["n_total"], result["n_per_group"]
+            alpha,
+            power,
+            effect_size,
+            k_groups,
+            dropout_rate,
+            result["n_total"],
+            result["n_per_group"]
         )
 
         st.code(paragraph)

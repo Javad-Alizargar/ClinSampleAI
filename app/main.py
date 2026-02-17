@@ -1,13 +1,12 @@
 # ==========================================
-# ClinSample AI — Streamlit App (Educational v3)
+# ClinSample AI — Standardized Formula Edition
 # ==========================================
 
 import sys
 import os
+import math
 
-# --------------------------------------------------
-# Fix import path for Streamlit Cloud
-# --------------------------------------------------
+# Fix Streamlit Cloud import path
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
 if PROJECT_ROOT not in sys.path:
@@ -33,7 +32,7 @@ from templates.paragraph_templates import (
 st.set_page_config(page_title="ClinSample AI", layout="centered")
 
 st.title("ClinSample AI — Sample Size Calculator")
-st.markdown("Evidence-based, thesis-ready sample size planning with educational guidance.")
+st.markdown("Mathematically standardized, thesis-ready sample size planning.")
 
 # --------------------------------------------------
 study_type = st.selectbox(
@@ -46,7 +45,7 @@ study_type = st.selectbox(
     ]
 )
 
-# Sidebar global settings
+# Sidebar
 st.sidebar.header("Statistical Parameters")
 
 alpha = st.sidebar.number_input("Alpha (Type I error)", 0.001, 0.2, 0.05, 0.001)
@@ -61,47 +60,32 @@ if study_type == "One-Sample Mean":
 
     st.header("One-Sample Mean")
 
-    with st.expander("📘 When to Use This Design"):
-        st.markdown("""
-Used when comparing a sample mean to a known reference value.
+    st.subheader("Mathematical Formula")
 
-**Example:**  
-Testing whether the mean fasting glucose level in a clinic differs from 
-the national average of 100 mg/dL.
-        """)
+    st.latex(r"""
+    n = \left( \frac{(Z_{\alpha} + Z_{\beta}) \cdot SD}{\Delta} \right)^2
+    """)
 
-    with st.expander("📊 Understanding the Parameters"):
-        st.markdown("""
-**Standard Deviation (SD):**
-- Reflects variability of the outcome.
-- Obtain from:
-  - Published literature
-  - Pilot study
-  - Previous datasets
-- If uncertain, use conservative (larger) estimate.
-
-**Mean Difference (Δ):**
-- Clinically meaningful difference.
-- Should be justified based on:
-  - Clinical relevance
-  - Regulatory standards
-  - Prior trials
-        """)
+    st.latex(r"Z_{\alpha} = \Phi^{-1}(1-\alpha/2)")
+    st.latex(r"Z_{\beta} = \Phi^{-1}(power)")
 
     sd = st.number_input("Standard Deviation (SD)", 0.0001, value=1.0)
     delta = st.number_input("Clinically Meaningful Difference (Δ)", 0.0001, value=0.5)
 
     if st.button("Calculate Sample Size"):
+
         result = calculate_one_sample_mean(alpha, power, sd, delta, two_sided, dropout_rate)
+
         st.success(f"Required Sample Size: {result['n_required']}")
         st.write("Before Dropout:", result["n_before_dropout"])
 
         paragraph = paragraph_one_sample_mean(
-            alpha, power, sd, delta, two_sided,
-            dropout_rate, result["n_required"]
+            alpha, power, sd, delta,
+            two_sided, dropout_rate,
+            result["n_required"]
         )
-        st.code(paragraph)
 
+        st.code(paragraph)
 
 # ==========================================================
 # TWO INDEPENDENT MEANS
@@ -110,45 +94,35 @@ elif study_type == "Two Independent Means":
 
     st.header("Two Independent Means")
 
-    with st.expander("📘 When to Use This Design"):
-        st.markdown("""
-Used when comparing means between two independent groups.
+    st.subheader("Mathematical Formula")
 
-**Example:**  
-Comparing mean HbA1c between treatment and placebo groups.
-        """)
+    st.latex(r"""
+    n_1 = (1 + \frac{1}{r})
+    \left( \frac{(Z_{\alpha} + Z_{\beta}) \cdot SD}{\Delta} \right)^2
+    """)
 
-    with st.expander("📊 Parameter Guidance"):
-        st.markdown("""
-**Common SD:**
-- Estimate pooled SD from literature.
-- If groups differ greatly, reconsider design.
+    st.latex(r"n_2 = r \cdot n_1")
 
-**Mean Difference (Δ):**
-- Define minimal clinically important difference.
-
-**Allocation Ratio:**
-- 1.0 = equal groups
-- >1 = more participants in group 2
-        """)
+    st.latex(r"r = \frac{n_2}{n_1}")
 
     sd = st.number_input("Common SD", 0.0001, value=1.0)
-    delta = st.number_input("Expected Mean Difference (Δ)", 0.0001, value=0.5)
+    delta = st.number_input("Mean Difference (Δ)", 0.0001, value=0.5)
     ratio = st.number_input("Allocation Ratio (n2/n1)", 0.1, value=1.0)
 
     if st.button("Calculate Sample Size"):
+
         result = calculate_two_independent_means(alpha, power, sd, delta, ratio, two_sided, dropout_rate)
 
         st.success(f"Group 1: {result['n_group1']} | Group 2: {result['n_group2']}")
-        st.write("Total Sample Size:", result["n_total"])
+        st.write("Total:", result["n_total"])
 
         paragraph = paragraph_two_independent_means(
-            alpha, power, sd, delta, ratio,
-            two_sided, dropout_rate,
+            alpha, power, sd, delta,
+            ratio, two_sided, dropout_rate,
             result["n_group1"], result["n_group2"]
         )
-        st.code(paragraph)
 
+        st.code(paragraph)
 
 # ==========================================================
 # PAIRED MEAN
@@ -157,27 +131,21 @@ elif study_type == "Paired Mean":
 
     st.header("Paired Mean")
 
-    with st.expander("📘 When to Use This Design"):
-        st.markdown("""
-Used when measurements are taken on the same participants twice.
+    st.subheader("Mathematical Formula")
 
-**Example:**  
-Blood pressure before and after intervention.
-        """)
+    st.latex(r"""
+    n = \left( \frac{(Z_{\alpha} + Z_{\beta}) \cdot SD_d}{\Delta} \right)^2
+    """)
 
-    with st.expander("📊 Parameter Guidance"):
-        st.markdown("""
-**SD of Differences (SDd):**
-- NOT the raw SD.
-- Must compute SD of within-subject differences.
-- Often smaller than independent SD.
-        """)
+    st.latex(r"SD_d = \text{Standard deviation of paired differences}")
 
     sd_diff = st.number_input("SD of Differences", 0.0001, value=1.0)
     delta = st.number_input("Mean Difference (Δ)", 0.0001, value=0.5)
 
     if st.button("Calculate Sample Size"):
+
         result = calculate_paired_mean(alpha, power, sd_diff, delta, two_sided, dropout_rate)
+
         st.success(f"Required Sample Size: {result['n_required']}")
 
         paragraph = paragraph_paired_mean(
@@ -185,95 +153,65 @@ Blood pressure before and after intervention.
             two_sided, dropout_rate,
             result["n_required"]
         )
-        st.code(paragraph)
 
+        st.code(paragraph)
 
 # ==========================================================
 # ONE-WAY ANOVA
 # ==========================================================
 elif study_type == "One-Way ANOVA":
 
-    import math
-
     st.header("One-Way ANOVA")
 
-    # --------------------------------------------------
-    with st.expander("📘 When to Use One-Way ANOVA"):
-        st.markdown("""
-Used when comparing means across three or more independent groups.
+    st.subheader("Effect Size Definition")
 
-Example:
-Comparing cholesterol levels across 3 dietary regimens.
-        """)
+    st.latex(r"""
+    f = \sqrt{\frac{\eta^2}{1 - \eta^2}}
+    """)
 
-    # --------------------------------------------------
-    with st.expander("📐 What is Cohen’s f? (Effect Size)"):
-        st.write("Cohen’s f measures standardized separation between group means.")
+    st.subheader("Power Equation (F-test based)")
 
-        st.write("Relationship with eta-squared:")
-        st.latex(r"f = \sqrt{\frac{\eta^2}{1 - \eta^2}}")
+    st.latex(r"""
+    N = \text{solve\_power}(f, \alpha, power, k)
+    """)
 
-        st.write("Interpretation guidelines:")
-        st.write("• 0.10 = Small effect")
-        st.write("• 0.25 = Medium effect")
-        st.write("• 0.40 = Large effect")
+    st.subheader("Compute Cohen’s f from Group Means")
 
-    # --------------------------------------------------
-    with st.expander("🧮 Compute Cohen’s f from Group Means and SD"):
+    st.latex(r"\bar{\mu} = \frac{\sum \mu_i}{k}")
+    st.latex(r"SS_{between} = \sum (\mu_i - \bar{\mu})^2")
+    st.latex(r"f = \frac{\sqrt{SS_{between}/k}}{SD}")
 
-        st.write("Assumptions:")
-        st.write("• Equal group sizes")
-        st.write("• Similar SD across groups")
+    k_est = st.number_input("Groups for f Estimation", min_value=2, value=3)
 
-        st.write("Formula used:")
+    means = []
+    for i in range(int(k_est)):
+        m = st.number_input(f"Mean of Group {i+1}", value=0.0, key=f"mean_{i}")
+        means.append(m)
 
-        st.latex(r"\bar{\mu} = \frac{\sum \mu_i}{k}")
-        st.latex(r"SS_{between} = \sum (\mu_i - \bar{\mu})^2")
-        st.latex(r"f = \frac{\sqrt{SS_{between}/k}}{SD}")
+    sd_common = st.number_input("Common SD", min_value=0.0001, value=1.0)
 
-        k_est = st.number_input("Number of Groups for f Estimation", min_value=2, value=3)
+    if st.button("Compute Cohen's f"):
 
-        means = []
-        for i in range(int(k_est)):
-            m = st.number_input(f"Mean of Group {i+1}", value=0.0, key=f"mean_{i}")
-            means.append(m)
+        grand_mean = sum(means) / len(means)
+        ss_between = sum((m - grand_mean) ** 2 for m in means)
+        variance_between = ss_between / len(means)
+        f_calc = math.sqrt(variance_between) / sd_common
 
-        sd_common = st.number_input("Common SD (or average SD)", min_value=0.0001, value=1.0)
+        st.success(f"Cohen's f = {round(f_calc,4)}")
 
-        if st.button("Compute Cohen's f from Means"):
+    st.markdown("---")
 
-            grand_mean = sum(means) / len(means)
-            ss_between = sum((m - grand_mean) ** 2 for m in means)
-            variance_between = ss_between / len(means)
-            f_calculated = math.sqrt(variance_between) / sd_common
+    st.subheader("Sample Size Planning")
 
-            st.success(f"Estimated Cohen's f: {round(f_calculated, 4)}")
-
-            st.write("Interpretation:")
-            st.write("• < 0.10 = Very small")
-            st.write("• ≈ 0.25 = Moderate")
-            st.write("• > 0.40 = Large")
-
-    # --------------------------------------------------
-    st.markdown("### 🎯 Sample Size Planning")
-
-    st.write("Log-rank planning formula uses F-test power method internally.")
-
-    effect_size = st.number_input("Cohen's f for Sample Size", min_value=0.0001, value=0.25)
+    effect_size = st.number_input("Cohen's f for Planning", min_value=0.0001, value=0.25)
     k_groups = st.number_input("Number of Groups", min_value=2, value=3)
 
     if st.button("Calculate Sample Size"):
 
-        result = calculate_anova_oneway(
-            alpha, power, effect_size,
-            k_groups, dropout_rate
-        )
+        result = calculate_anova_oneway(alpha, power, effect_size, k_groups, dropout_rate)
 
         st.success(f"Total Sample Size: {result['n_total']}")
-        st.write("Participants per Group:", result["n_per_group"])
-
-        st.write("Underlying power equation:")
-        st.latex(r"N = \text{solve\_power}(f, \alpha, \text{power}, k)")
+        st.write("Per Group:", result["n_per_group"])
 
         paragraph = paragraph_anova(
             alpha, power, effect_size,

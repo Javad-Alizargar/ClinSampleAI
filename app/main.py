@@ -853,10 +853,23 @@ Then:
 Δ = p₁ − p₀
         """)
 
-        p0_calc = st.number_input("Reference Proportion (p₀)", min_value=0.0001, max_value=0.9999, value=0.2)
-        p1_calc = st.number_input("Expected Proportion (p₁)", min_value=0.0001, max_value=0.9999, value=0.3)
+        p0_calc = st.number_input(
+            "Reference Proportion (p₀)",
+            min_value=0.0001,
+            max_value=0.9999,
+            value=0.2,
+            key="oneprop_p0_calc"
+        )
 
-        if st.button("Compute Δ (Risk Difference)"):
+        p1_calc = st.number_input(
+            "Expected Proportion (p₁)",
+            min_value=0.0001,
+            max_value=0.9999,
+            value=0.3,
+            key="oneprop_p1_calc"
+        )
+
+        if st.button("Compute Δ (Risk Difference)", key="oneprop_delta_btn"):
 
             delta_raw = p1_calc - p0_calc
             delta_abs = abs(delta_raw)
@@ -871,19 +884,19 @@ Then:
 **p₀ (Reference proportion)**
 
 Sources:
-• National registry
-• Historical control data
-• Published prevalence
-• Clinical target benchmark
+• National registry  
+• Historical control data  
+• Published prevalence  
+• Clinical target benchmark  
 
 ---
 
 **p₁ (Expected proportion)**
 
 Should be:
-• Clinically meaningful improvement or change
-• Supported by literature or pilot
-• Realistic
+• Clinically meaningful improvement or change  
+• Supported by literature or pilot  
+• Realistic  
 
 Smaller difference between p₁ and p₀ → larger required sample size.
 
@@ -905,10 +918,23 @@ Choosing p₁ unrealistically far from p₀.
     st.markdown("---")
     st.subheader("🎯 Final Sample Size Planning")
 
-    p0 = st.number_input("Reference Proportion (p₀)", min_value=0.0001, max_value=0.9999, value=0.2)
-    p1 = st.number_input("Expected Proportion (p₁)", min_value=0.0001, max_value=0.9999, value=0.3)
+    p0 = st.number_input(
+        "Reference Proportion (p₀)",
+        min_value=0.0001,
+        max_value=0.9999,
+        value=0.2,
+        key="oneprop_p0_final"
+    )
 
-    if st.button("Calculate Sample Size"):
+    p1 = st.number_input(
+        "Expected Proportion (p₁)",
+        min_value=0.0001,
+        max_value=0.9999,
+        value=0.3,
+        key="oneprop_p1_final"
+    )
+
+    if st.button("Calculate Sample Size", key="oneprop_calc_btn"):
 
         delta_used = abs(p1 - p0)
 
@@ -929,11 +955,9 @@ Choosing p₁ unrealistically far from p₀.
         Z_beta = stats.norm.ppf(power)
 
         st.markdown("### 🔎 Intermediate Values")
-
         st.write(f"Zα = {round(Z_alpha,4)}")
         st.write(f"Zβ = {round(Z_beta,4)}")
 
-        # SAFE LATEX (NO rf-string)
         latex_formula = f"""
         n =
         \\frac{{
@@ -945,6 +969,7 @@ Choosing p₁ unrealistically far from p₀.
         }}
         {{({round(delta_used,4)})^2}}
         """
+
         st.latex(latex_formula)
 
         st.success(f"Required Sample Size: {result['n_required']}")

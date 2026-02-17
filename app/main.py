@@ -207,30 +207,29 @@ Comparing cholesterol levels across 3 dietary regimens.
         """)
 
     # --------------------------------------------------
-    with st.expander("📐 What is Cohen’s f?"):
-        st.markdown(r"""
-Cohen’s f measures standardized separation between group means.
+    with st.expander("📐 What is Cohen’s f? (Effect Size)"):
+        st.write("Cohen’s f measures standardized separation between group means.")
 
-Formula:
+        st.write("Relationship with eta-squared:")
+        st.latex(r"f = \sqrt{\frac{\eta^2}{1 - \eta^2}}")
 
-f = √(η² / (1 − η²))
-
-Interpretation:
-- 0.10 = Small
-- 0.25 = Medium
-- 0.40 = Large
-        """)
+        st.write("Interpretation guidelines:")
+        st.write("• 0.10 = Small effect")
+        st.write("• 0.25 = Medium effect")
+        st.write("• 0.40 = Large effect")
 
     # --------------------------------------------------
     with st.expander("🧮 Compute Cohen’s f from Group Means and SD"):
 
-        st.markdown("""
-If you have pilot data or literature means, you can compute f directly.
+        st.write("Assumptions:")
+        st.write("• Equal group sizes")
+        st.write("• Similar SD across groups")
 
-Assumptions:
-• Equal group sizes  
-• Similar SD across groups  
-        """)
+        st.write("Formula used:")
+
+        st.latex(r"\bar{\mu} = \frac{\sum \mu_i}{k}")
+        st.latex(r"SS_{between} = \sum (\mu_i - \bar{\mu})^2")
+        st.latex(r"f = \frac{\sqrt{SS_{between}/k}}{SD}")
 
         k_est = st.number_input("Number of Groups for f Estimation", min_value=2, value=3)
 
@@ -244,32 +243,21 @@ Assumptions:
         if st.button("Compute Cohen's f from Means"):
 
             grand_mean = sum(means) / len(means)
-
             ss_between = sum((m - grand_mean) ** 2 for m in means)
-
             variance_between = ss_between / len(means)
-
             f_calculated = math.sqrt(variance_between) / sd_common
 
             st.success(f"Estimated Cohen's f: {round(f_calculated, 4)}")
 
-            st.markdown("""
-Interpretation:
-- <0.10 → Very small
-- ~0.25 → Moderate
-- >0.40 → Large effect
-            """)
-
-    # --------------------------------------------------
-    with st.expander("📊 Choosing a Conservative Value"):
-        st.markdown("""
-If unsure:
-• Use slightly smaller f than pilot estimate.
-• Avoid overestimating effect size.
-        """)
+            st.write("Interpretation:")
+            st.write("• < 0.10 = Very small")
+            st.write("• ≈ 0.25 = Moderate")
+            st.write("• > 0.40 = Large")
 
     # --------------------------------------------------
     st.markdown("### 🎯 Sample Size Planning")
+
+    st.write("Log-rank planning formula uses F-test power method internally.")
 
     effect_size = st.number_input("Cohen's f for Sample Size", min_value=0.0001, value=0.25)
     k_groups = st.number_input("Number of Groups", min_value=2, value=3)
@@ -284,12 +272,13 @@ If unsure:
         st.success(f"Total Sample Size: {result['n_total']}")
         st.write("Participants per Group:", result["n_per_group"])
 
+        st.write("Underlying power equation:")
+        st.latex(r"N = \text{solve\_power}(f, \alpha, \text{power}, k)")
+
         paragraph = paragraph_anova(
             alpha, power, effect_size,
             k_groups, dropout_rate,
             result["n_total"], result["n_per_group"]
         )
-
-        st.code(paragraph)
 
         st.code(paragraph)

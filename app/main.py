@@ -58,30 +58,140 @@ two_sided = st.sidebar.checkbox("Two-sided test", True)
 # ==========================================================
 if study_type == "One-Sample Mean":
 
+    import scipy.stats as stats
+    import math
+
     st.header("One-Sample Mean")
 
-    st.subheader("Mathematical Formula")
+    # --------------------------------------------------
+    with st.expander("📘 When to Use This Design", expanded=True):
+        st.markdown("""
+Used when comparing a sample mean to a known or reference value.
 
-    st.latex(r"""
-    n = \left( \frac{(Z_{\alpha} + Z_{\beta}) \cdot SD}{\Delta} \right)^2
-    """)
+Example:
+Testing whether the mean fasting glucose level in diabetic patients differs from
+the national reference value of 100 mg/dL.
 
-    st.latex(r"Z_{\alpha} = \Phi^{-1}(1-\alpha/2)")
-    st.latex(r"Z_{\beta} = \Phi^{-1}(power)")
+Design assumptions:
+• Single group
+• Approximately normal outcome
+• SD known or estimated from literature/pilot data
+        """)
 
-    sd = st.number_input("Standard Deviation (SD)", 0.0001, value=1.0)
-    delta = st.number_input("Clinically Meaningful Difference (Δ)", 0.0001, value=0.5)
+    # --------------------------------------------------
+    with st.expander("📐 Mathematical Formula", expanded=True):
+
+        st.write("Core sample size formula:")
+
+        st.latex(r"""
+        n = \left( \frac{(Z_{\alpha} + Z_{\beta}) \cdot SD}{\Delta} \right)^2
+        """)
+
+        st.write("Where:")
+
+        st.latex(r"Z_{\alpha} = \Phi^{-1}(1 - \alpha/2) \quad \text{(two-sided)}")
+        st.latex(r"Z_{\beta} = \Phi^{-1}(power)")
+        st.latex(r"SD = \text{standard deviation}")
+        st.latex(r"\Delta = \text{clinically meaningful mean difference}")
+
+        st.write("For one-sided test:")
+
+        st.latex(r"Z_{\alpha} = \Phi^{-1}(1 - \alpha)")
+
+    # --------------------------------------------------
+    with st.expander("📊 Parameter Explanation and How to Obtain Them", expanded=False):
+
+        st.markdown("""
+**Standard Deviation (SD):**
+
+Represents variability in the outcome.
+
+How to obtain:
+• From previous published studies  
+• From pilot study  
+• From meta-analysis  
+• From registry data  
+
+If unsure:
+Use slightly larger SD for conservative planning.
+
+---
+
+**Mean Difference (Δ):**
+
+This is the smallest clinically meaningful difference you want to detect.
+
+Should NOT be chosen arbitrarily.
+
+Sources:
+• Clinical guidelines  
+• Expert consensus  
+• Prior RCTs  
+• Regulatory thresholds  
+
+Larger Δ → smaller sample size  
+Smaller Δ → larger sample size
+        """)
+
+    # --------------------------------------------------
+    with st.expander("🧮 Understanding Z-values", expanded=False):
+
+        st.latex(r"Z_{\alpha} = \Phi^{-1}(1 - \alpha/2)")
+        st.latex(r"Z_{\beta} = \Phi^{-1}(power)")
+
+        st.write("Example values:")
+
+        st.write("• α = 0.05 (two-sided) → Zα ≈ 1.96")
+        st.write("• Power = 0.80 → Zβ ≈ 0.84")
+        st.write("• Power = 0.90 → Zβ ≈ 1.28")
+
+    # --------------------------------------------------
+    st.markdown("---")
+    st.subheader("🎯 Sample Size Calculation")
+
+    sd = st.number_input("Standard Deviation (SD)", min_value=0.0001, value=1.0)
+    delta = st.number_input("Clinically Meaningful Difference (Δ)", min_value=0.0001, value=0.5)
 
     if st.button("Calculate Sample Size"):
 
-        result = calculate_one_sample_mean(alpha, power, sd, delta, two_sided, dropout_rate)
+        result = calculate_one_sample_mean(
+            alpha,
+            power,
+            sd,
+            delta,
+            two_sided,
+            dropout_rate
+        )
+
+        # Manual display of components
+        if two_sided:
+            Z_alpha = stats.norm.ppf(1 - alpha/2)
+        else:
+            Z_alpha = stats.norm.ppf(1 - alpha)
+
+        Z_beta = stats.norm.ppf(power)
+
+        st.markdown("### 🔎 Intermediate Values")
+
+        st.write(f"Zα = {round(Z_alpha,4)}")
+        st.write(f"Zβ = {round(Z_beta,4)}")
+
+        st.latex(rf"""
+        n = \left( \frac{{({round(Z_alpha,4)} + {round(Z_beta,4)}) \cdot {sd}}}{{{delta}}} \right)^2
+        """)
 
         st.success(f"Required Sample Size: {result['n_required']}")
-        st.write("Before Dropout:", result["n_before_dropout"])
+        st.write("Before Dropout Adjustment:", result["n_before_dropout"])
+
+        st.markdown("### 📄 Copy for Thesis / Manuscript")
 
         paragraph = paragraph_one_sample_mean(
-            alpha, power, sd, delta,
-            two_sided, dropout_rate,
+            alpha,
+            power,
+            sd,
+            delta,
+            two_sided,
+            dropout_rate,
             result["n_required"]
         )
 

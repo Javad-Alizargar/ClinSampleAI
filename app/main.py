@@ -397,36 +397,203 @@ Unequal allocation increases total sample size.
         st.code(paragraph)
 
 # ==========================================================
-# PAIRED MEAN
+# PAIRED MEAN (Before–After / Matched Pairs)
 # ==========================================================
 elif study_type == "Paired Mean":
 
-    st.header("Paired Mean")
+    import scipy.stats as stats
+    import math
 
-    st.subheader("Mathematical Formula")
+    st.header("Paired Mean (Before–After / Matched Pairs)")
 
-    st.latex(r"""
-    n = \left( \frac{(Z_{\alpha} + Z_{\beta}) \cdot SD_d}{\Delta} \right)^2
-    """)
+    # --------------------------------------------------
+    with st.expander("📘 When to Use This Design", expanded=True):
+        st.markdown("""
+Used when the **same participants** are measured twice (or matched pairs are compared).
 
-    st.latex(r"SD_d = \text{Standard deviation of paired differences}")
+Common examples:
+• Blood pressure before vs after an intervention  
+• Pain score pre-treatment vs post-treatment  
+• Lab marker measured at baseline and follow-up in the same subjects  
 
-    sd_diff = st.number_input("SD of Differences", 0.0001, value=1.0)
-    delta = st.number_input("Mean Difference (Δ)", 0.0001, value=0.5)
+Key idea:
+Because measurements are paired, variability is based on the **within-subject differences**,
+not the raw SD of each timepoint.
+        """)
+
+    # --------------------------------------------------
+    with st.expander("📐 Mathematical Formula", expanded=True):
+
+        st.write("Core sample size formula for paired mean difference:")
+
+        st.latex(r"""
+        n = \left( \frac{(Z_{\alpha} + Z_{\beta}) \cdot SD_d}{\Delta} \right)^2
+        """)
+
+        st.write("Where:")
+
+        st.latex(r"SD_d = \text{SD of within-subject differences } (d_i = X_{post,i}-X_{pre,i})")
+        st.latex(r"\Delta = \text{clinically meaningful mean difference in paired change}")
+        st.latex(r"Z_{\alpha} = \Phi^{-1}(1-\alpha/2)\ \text{(two-sided)}")
+        st.latex(r"Z_{\beta} = \Phi^{-1}(power)")
+
+        st.write("For one-sided test:")
+
+        st.latex(r"Z_{\alpha} = \Phi^{-1}(1-\alpha)")
+
+    # --------------------------------------------------
+    with st.expander("🧮 Compute SD of Differences (SDd) from Simple Inputs", expanded=False):
+
+        st.markdown("""
+Most users do **not** directly know SD of differences.
+You can estimate it from common values available in literature/pilot studies.
+
+### Method 1 — If you have SD of paired differences directly:
+Use that value as **SDd**.
+
+### Method 2 — If you only have SD at baseline and follow-up + correlation (ρ):
+Use:
+
+SDd = √(SD_pre² + SD_post² − 2ρ·SD_pre·SD_post)
+
+This is the most common practical approach.
+        """)
+
+        st.write("Formula:")
+
+        st.latex(r"""
+        SD_d =
+        \sqrt{
+        SD_{pre}^2 + SD_{post}^2 - 2\rho \cdot SD_{pre} \cdot SD_{post}
+        }
+        """)
+
+        sd_pre = st.number_input("SD at Baseline (SD_pre)", min_value=0.0001, value=1.0)
+        sd_post = st.number_input("SD at Follow-up (SD_post)", min_value=0.0001, value=1.0)
+        rho = st.number_input("Correlation between measurements (ρ)", min_value=0.0, max_value=0.99, value=0.5)
+
+        if st.button("Compute SDd"):
+
+            sdd = math.sqrt(sd_pre**2 + sd_post**2 - 2*rho*sd_pre*sd_post)
+            st.success(f"Estimated SD of Differences (SDd) = {round(sdd,4)}")
+
+            st.markdown("Interpretation notes:")
+            st.write("• Higher correlation (ρ) → smaller SDd → smaller required sample size")
+            st.write("• If correlation is unknown, ρ=0.5 is a common planning default")
+
+    # --------------------------------------------------
+    with st.expander("🧮 Compute Mean Difference (Δ) from Two Means", expanded=False):
+
+        st.markdown("""
+If you have means for baseline and follow-up (or paired conditions), compute:
+
+Δ = Mean_post − Mean_pre
+
+Use absolute value for planning (magnitude of change).
+        """)
+
+        mean_pre = st.number_input("Mean at Baseline (Mean_pre)", value=0.0)
+        mean_post = st.number_input("Mean at Follow-up (Mean_post)", value=0.0)
+
+        if st.button("Compute Δ (paired change)"):
+
+            delta_raw = mean_post - mean_pre
+            delta_abs = abs(delta_raw)
+
+            st.write(f"Raw Δ (post - pre) = {round(delta_raw,4)}")
+            st.write(f"Absolute Δ used in calculation = {round(delta_abs,4)}")
+
+    # --------------------------------------------------
+    with st.expander("📊 Parameter Guidance (How to Choose SDd and Δ)", expanded=False):
+
+        st.markdown("""
+**SDd (SD of differences)**  
+Preferred sources:
+• Pilot study: compute differences per subject and take SD  
+• Prior paired studies reporting SD of change  
+• If only SD_pre and SD_post available: use correlation-based formula above  
+
+**Correlation (ρ)**  
+Sources:
+• Pilot study correlation  
+• Similar published studies  
+If unknown, ρ=0.3–0.7 is typical; 0.5 is a practical default.
+
+**Δ (paired mean difference)**  
+Should be clinically meaningful change (e.g., minimal clinically important difference, MCID)
+or expected change from literature.
+
+Smaller Δ → larger sample size.
+        """)
+
+    # --------------------------------------------------
+    with st.expander("🧮 Understanding Z-values", expanded=False):
+
+        st.latex(r"Z_{\alpha} = \Phi^{-1}(1-\alpha/2)")
+        st.latex(r"Z_{\beta} = \Phi^{-1}(power)")
+
+        st.write("Common reference values:")
+        st.write("• α = 0.05 (two-sided) → Zα ≈ 1.96")
+        st.write("• Power = 0.80 → Zβ ≈ 0.84")
+        st.write("• Power = 0.90 → Zβ ≈ 1.28")
+
+    # --------------------------------------------------
+    st.markdown("---")
+    st.subheader("🎯 Final Sample Size Planning")
+
+    sd_diff = st.number_input("SD of Differences (SDd) for Planning", min_value=0.0001, value=1.0)
+    delta = st.number_input("Mean Difference (Δ) for Planning", min_value=0.0001, value=0.5)
 
     if st.button("Calculate Sample Size"):
 
-        result = calculate_paired_mean(alpha, power, sd_diff, delta, two_sided, dropout_rate)
+        delta_used = abs(delta)
+
+        result = calculate_paired_mean(
+            alpha,
+            power,
+            sd_diff,
+            delta_used,
+            two_sided,
+            dropout_rate
+        )
+
+        # Intermediate Z-values
+        if two_sided:
+            Z_alpha = stats.norm.ppf(1 - alpha/2)
+        else:
+            Z_alpha = stats.norm.ppf(1 - alpha)
+
+        Z_beta = stats.norm.ppf(power)
+
+        st.markdown("### 🔎 Intermediate Values")
+        st.write(f"Zα = {round(Z_alpha,4)}")
+        st.write(f"Zβ = {round(Z_beta,4)}")
+
+        st.latex(rf"""
+        n =
+        \left(
+        \frac{{({round(Z_alpha,4)} + {round(Z_beta,4)}) \cdot {sd_diff}}}
+        {{{delta_used}}}
+        \right)^2
+        """)
 
         st.success(f"Required Sample Size: {result['n_required']}")
+        st.write("Before Dropout Adjustment:", result["n_before_dropout"])
+
+        st.markdown("### 📄 Copy for Thesis / Manuscript")
 
         paragraph = paragraph_paired_mean(
-            alpha, power, sd_diff, delta,
-            two_sided, dropout_rate,
+            alpha,
+            power,
+            sd_diff,
+            delta_used,
+            two_sided,
+            dropout_rate,
             result["n_required"]
         )
 
         st.code(paragraph)
+
 
 # ==========================================================
 # ONE-WAY ANOVA

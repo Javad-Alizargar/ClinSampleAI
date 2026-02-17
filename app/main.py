@@ -35,13 +35,29 @@ st.title("ClinSample AI — Sample Size Calculator")
 st.markdown("Mathematically standardized, thesis-ready sample size planning.")
 
 # --------------------------------------------------
+# --------------------------------------------------
 study_type = st.selectbox(
     "Select Study Type",
     [
+        # Continuous
         "One-Sample Mean",
         "Two Independent Means",
         "Paired Mean",
         "One-Way ANOVA",
+
+        # Binary
+        "One Proportion",
+        "Two Proportions",
+        "Case-Control (Odds Ratio)",
+        "Cohort (Risk Ratio)",
+
+        # Association
+        "Correlation",
+        "Linear Regression",
+        "Logistic Regression",
+
+        # Survival
+        "Survival (Log-Rank)"
     ]
 )
 

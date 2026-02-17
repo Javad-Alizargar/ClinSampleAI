@@ -933,17 +933,19 @@ Choosing p₁ unrealistically far from p₀.
         st.write(f"Zα = {round(Z_alpha,4)}")
         st.write(f"Zβ = {round(Z_beta,4)}")
 
-        st.latex(rf"""
+        # SAFE LATEX (NO rf-string)
+        latex_formula = f"""
         n =
-        \frac{
-        \left(
-        {round(Z_alpha,4)}\sqrt{{{p0}(1-{p0})}}
+        \\frac{{
+        \\left(
+        {round(Z_alpha,4)}\\sqrt{{{p0}(1-{p0})}}
         +
-        {round(Z_beta,4)}\sqrt{{{p1}(1-{p1})}}
-        \right)^2
-        }
+        {round(Z_beta,4)}\\sqrt{{{p1}(1-{p1})}}
+        \\right)^2
+        }}
         {{({round(delta_used,4)})^2}}
-        """)
+        """
+        st.latex(latex_formula)
 
         st.success(f"Required Sample Size: {result['n_required']}")
         st.write("Before Dropout Adjustment:", result["n_before_dropout"])

@@ -193,138 +193,85 @@ Blood pressure before and after intervention.
 # ==========================================================
 elif study_type == "One-Way ANOVA":
 
+    import math
+
     st.header("One-Way ANOVA")
 
     # --------------------------------------------------
     with st.expander("📘 When to Use One-Way ANOVA"):
         st.markdown("""
-Used when comparing means across **three or more independent groups**.
-
-Typical examples:
-
-• Comparing LDL cholesterol across 3 diet types  
-• Comparing pain scores across 4 treatment arms  
-• Comparing blood pressure across different drug doses  
-
-Assumes:
-- Independent groups
-- Approximately normal outcome
-- Homogeneity of variance (similar SD across groups)
-        """)
-
-    # --------------------------------------------------
-    with st.expander("📐 What is Cohen’s f? (Effect Size Explanation)"):
-        st.markdown(r"""
-Cohen’s f is the standardized effect size used for ANOVA.
-
-Mathematically:
-
-f = √(η² / (1 − η²))
-
-Where:
-
-η² (eta squared) = proportion of variance explained by group differences.
-
-Interpretation (Cohen, 1988):
-
-- f = 0.10 → Small effect  
-- f = 0.25 → Medium effect  
-- f = 0.40 → Large effect  
-
-Important:
-f does NOT measure raw mean difference.  
-It measures how separated the group means are relative to within-group variability.
-        """)
-
-    # --------------------------------------------------
-    with st.expander("📊 How to Obtain Cohen’s f from Published Studies"):
-        st.markdown("""
-If a paper reports:
-
-1️⃣ Eta squared (η²):
-   Use:
-   f = √(η² / (1 − η²))
+Used when comparing means across three or more independent groups.
 
 Example:
-If η² = 0.06
-
-f = √(0.06 / 0.94)
-f ≈ 0.25 (medium effect)
-
----
-
-2️⃣ Partial eta squared (ηp²):
-   You can use the same formula approximately for planning.
-
----
-
-3️⃣ Means and Standard Deviations:
-   If study reports group means and SD:
-
-Step 1: Compute variance between groups  
-Step 2: Compute pooled within-group variance  
-Step 3: Compute η²  
-Step 4: Convert to f
-
-This is more advanced but possible from published tables.
+Comparing cholesterol levels across 3 dietary regimens.
         """)
 
     # --------------------------------------------------
-    with st.expander("🧪 How to Estimate f from Pilot Data"):
-        st.markdown("""
-If you have pilot data:
+    with st.expander("📐 What is Cohen’s f?"):
+        st.markdown(r"""
+Cohen’s f measures standardized separation between group means.
 
-Step 1:
-Run one-way ANOVA in statistical software (R/SPSS/Python).
-
-Step 2:
-Extract η² or partial η².
-
-Step 3:
-Convert to Cohen’s f using:
+Formula:
 
 f = √(η² / (1 − η²))
 
-If pilot sample is small, consider slightly reducing f (conservative planning).
+Interpretation:
+- 0.10 = Small
+- 0.25 = Medium
+- 0.40 = Large
         """)
 
     # --------------------------------------------------
-    with st.expander("🔢 Worked Numerical Example"):
+    with st.expander("🧮 Compute Cohen’s f from Group Means and SD"):
+
         st.markdown("""
-Suppose 3 diet groups have:
+If you have pilot data or literature means, you can compute f directly.
 
-Mean LDL:
-Group A: 120  
-Group B: 130  
-Group C: 145  
-
-Common SD ≈ 20  
-
-These means are separated moderately relative to SD.  
-This often produces η² ≈ 0.06–0.08  
-
-Converted to:
-
-f ≈ 0.25 (medium effect)
-
-Thus using f = 0.25 is reasonable.
+Assumptions:
+• Equal group sizes  
+• Similar SD across groups  
         """)
 
+        k_est = st.number_input("Number of Groups for f Estimation", min_value=2, value=3)
+
+        means = []
+        for i in range(int(k_est)):
+            m = st.number_input(f"Mean of Group {i+1}", value=0.0, key=f"mean_{i}")
+            means.append(m)
+
+        sd_common = st.number_input("Common SD (or average SD)", min_value=0.0001, value=1.0)
+
+        if st.button("Compute Cohen's f from Means"):
+
+            grand_mean = sum(means) / len(means)
+
+            ss_between = sum((m - grand_mean) ** 2 for m in means)
+
+            variance_between = ss_between / len(means)
+
+            f_calculated = math.sqrt(variance_between) / sd_common
+
+            st.success(f"Estimated Cohen's f: {round(f_calculated, 4)}")
+
+            st.markdown("""
+Interpretation:
+- <0.10 → Very small
+- ~0.25 → Moderate
+- >0.40 → Large effect
+            """)
+
     # --------------------------------------------------
-    with st.expander("⚠️ Choosing a Conservative Value"):
+    with st.expander("📊 Choosing a Conservative Value"):
         st.markdown("""
-If uncertain:
-
-• Use f = 0.25 (medium) if literature suggests moderate difference.
-• Use f = 0.20 for conservative planning.
-• Avoid using f = 0.40 unless strong separation is expected.
-
-Remember:
-Overestimating effect size → Underpowered study.
+If unsure:
+• Use slightly smaller f than pilot estimate.
+• Avoid overestimating effect size.
         """)
 
     # --------------------------------------------------
-    effect_size = st.number_input("Cohen's f", min_value=0.0001, value=0.25)
+    st.markdown("### 🎯 Sample Size Planning")
+
+    effect_size = st.number_input("Cohen's f for Sample Size", min_value=0.0001, value=0.25)
     k_groups = st.number_input("Number of Groups", min_value=2, value=3)
 
     if st.button("Calculate Sample Size"):
@@ -337,12 +284,12 @@ Overestimating effect size → Underpowered study.
         st.success(f"Total Sample Size: {result['n_total']}")
         st.write("Participants per Group:", result["n_per_group"])
 
-        st.markdown("### 📄 Copy for Thesis / Manuscript")
-
         paragraph = paragraph_anova(
             alpha, power, effect_size,
             k_groups, dropout_rate,
             result["n_total"], result["n_per_group"]
         )
+
+        st.code(paragraph)
 
         st.code(paragraph)

@@ -195,44 +195,154 @@ elif study_type == "One-Way ANOVA":
 
     st.header("One-Way ANOVA")
 
-    with st.expander("📘 When to Use This Design"):
+    # --------------------------------------------------
+    with st.expander("📘 When to Use One-Way ANOVA"):
         st.markdown("""
-Used when comparing means across 3 or more independent groups.
+Used when comparing means across **three or more independent groups**.
 
-**Example:**  
-Comparing cholesterol levels across 3 dietary regimens.
+Typical examples:
+
+• Comparing LDL cholesterol across 3 diet types  
+• Comparing pain scores across 4 treatment arms  
+• Comparing blood pressure across different drug doses  
+
+Assumes:
+- Independent groups
+- Approximately normal outcome
+- Homogeneity of variance (similar SD across groups)
         """)
 
-    with st.expander("📊 Understanding Cohen’s f"):
-        st.markdown("""
-Cohen’s f is the standardized effect size.
+    # --------------------------------------------------
+    with st.expander("📐 What is Cohen’s f? (Effect Size Explanation)"):
+        st.markdown(r"""
+Cohen’s f is the standardized effect size used for ANOVA.
 
-Interpretation:
-- 0.10 = small
-- 0.25 = medium
-- 0.40 = large
+Mathematically:
 
-Convert from η²:
-f = sqrt(η² / (1 - η²))
+f = √(η² / (1 − η²))
 
-Obtain from:
-- Previous ANOVA studies
-- Pilot data
-- Meta-analysis
+Where:
+
+η² (eta squared) = proportion of variance explained by group differences.
+
+Interpretation (Cohen, 1988):
+
+- f = 0.10 → Small effect  
+- f = 0.25 → Medium effect  
+- f = 0.40 → Large effect  
+
+Important:
+f does NOT measure raw mean difference.  
+It measures how separated the group means are relative to within-group variability.
         """)
 
-    effect_size = st.number_input("Cohen's f", 0.0001, value=0.25)
-    k_groups = st.number_input("Number of Groups", 2, value=3)
+    # --------------------------------------------------
+    with st.expander("📊 How to Obtain Cohen’s f from Published Studies"):
+        st.markdown("""
+If a paper reports:
+
+1️⃣ Eta squared (η²):
+   Use:
+   f = √(η² / (1 − η²))
+
+Example:
+If η² = 0.06
+
+f = √(0.06 / 0.94)
+f ≈ 0.25 (medium effect)
+
+---
+
+2️⃣ Partial eta squared (ηp²):
+   You can use the same formula approximately for planning.
+
+---
+
+3️⃣ Means and Standard Deviations:
+   If study reports group means and SD:
+
+Step 1: Compute variance between groups  
+Step 2: Compute pooled within-group variance  
+Step 3: Compute η²  
+Step 4: Convert to f
+
+This is more advanced but possible from published tables.
+        """)
+
+    # --------------------------------------------------
+    with st.expander("🧪 How to Estimate f from Pilot Data"):
+        st.markdown("""
+If you have pilot data:
+
+Step 1:
+Run one-way ANOVA in statistical software (R/SPSS/Python).
+
+Step 2:
+Extract η² or partial η².
+
+Step 3:
+Convert to Cohen’s f using:
+
+f = √(η² / (1 − η²))
+
+If pilot sample is small, consider slightly reducing f (conservative planning).
+        """)
+
+    # --------------------------------------------------
+    with st.expander("🔢 Worked Numerical Example"):
+        st.markdown("""
+Suppose 3 diet groups have:
+
+Mean LDL:
+Group A: 120  
+Group B: 130  
+Group C: 145  
+
+Common SD ≈ 20  
+
+These means are separated moderately relative to SD.  
+This often produces η² ≈ 0.06–0.08  
+
+Converted to:
+
+f ≈ 0.25 (medium effect)
+
+Thus using f = 0.25 is reasonable.
+        """)
+
+    # --------------------------------------------------
+    with st.expander("⚠️ Choosing a Conservative Value"):
+        st.markdown("""
+If uncertain:
+
+• Use f = 0.25 (medium) if literature suggests moderate difference.
+• Use f = 0.20 for conservative planning.
+• Avoid using f = 0.40 unless strong separation is expected.
+
+Remember:
+Overestimating effect size → Underpowered study.
+        """)
+
+    # --------------------------------------------------
+    effect_size = st.number_input("Cohen's f", min_value=0.0001, value=0.25)
+    k_groups = st.number_input("Number of Groups", min_value=2, value=3)
 
     if st.button("Calculate Sample Size"):
-        result = calculate_anova_oneway(alpha, power, effect_size, k_groups, dropout_rate)
+
+        result = calculate_anova_oneway(
+            alpha, power, effect_size,
+            k_groups, dropout_rate
+        )
 
         st.success(f"Total Sample Size: {result['n_total']}")
-        st.write("Per Group:", result["n_per_group"])
+        st.write("Participants per Group:", result["n_per_group"])
+
+        st.markdown("### 📄 Copy for Thesis / Manuscript")
 
         paragraph = paragraph_anova(
             alpha, power, effect_size,
             k_groups, dropout_rate,
             result["n_total"], result["n_per_group"]
         )
+
         st.code(paragraph)

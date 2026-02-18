@@ -1178,38 +1178,30 @@ elif study_type == "Case-Control (Odds Ratio)":
     import scipy.stats as stats
     import math
 
-    st.header("Case–Control Study (Odds Ratio)")
+    st.header("Case–Control Study (Odds Ratio Based Sample Size)")
 
     # --------------------------------------------------
     with st.expander("📘 When to Use This Design", expanded=True):
         st.markdown("""
-Used in retrospective observational studies where outcome status is fixed
-and exposure prevalence is compared between cases and controls.
+Used for unmatched case–control studies.
 
 Examples:
-• Smoking exposure among lung cancer cases vs controls
-• Obesity exposure among colorectal cancer cases vs controls
-• Genetic variant frequency among disease vs healthy subjects
+• Association between smoking and lung cancer  
+• Genetic variant and disease risk  
+• Exposure vs outcome (retrospective design)
 
 Design:
 • Binary exposure
 • Binary outcome
-• Independent case and control groups
-• Effect size expressed as Odds Ratio (OR)
+• Comparison based on Odds Ratio (OR)
         """)
 
     # --------------------------------------------------
-    with st.expander("📐 Mathematical Framework (Log Odds Ratio Method)", expanded=True):
-
-        st.markdown("First compute exposure probability in cases (p₁):")
+    with st.expander("📐 Mathematical Formula (Log Odds Ratio Method)", expanded=True):
 
         st.latex(r"""
-        p_1 =
-        \frac{OR \cdot p_0}
-        {1 - p_0 + OR \cdot p_0}
+        p_1 = \frac{OR \cdot p_0}{1 - p_0 + OR \cdot p_0}
         """)
-
-        st.markdown("Then compute sample size for log(OR):")
 
         st.latex(r"""
         n_1 =
@@ -1220,48 +1212,40 @@ Design:
         \frac{1}{r \cdot p_1(1-p_1)}
         \right)
         }
-        {(\ln(OR))^2}
+        {(\ln OR)^2}
         """)
 
-        st.markdown("Where:")
-
-        st.latex(r"p_0 = \text{Exposure prevalence in controls}")
-        st.latex(r"p_1 = \text{Exposure prevalence in cases}")
-        st.latex(r"OR = \text{Target odds ratio}")
-        st.latex(r"r = \text{Control-to-case ratio}")
         st.latex(r"n_2 = r \cdot n_1")
+
+        st.write("Where:")
+        st.write("• p₀ = exposure prevalence in controls")
+        st.write("• p₁ = exposure prevalence in cases (derived from OR)")
+        st.write("• r = control-to-case ratio")
+        st.write("• OR = target odds ratio")
 
     # --------------------------------------------------
     with st.expander("📊 Parameter Guidance", expanded=False):
 
         st.markdown("""
-**p₀ (Control Exposure Proportion)**  
-Must come from:
-• Published literature
-• National prevalence data
-• Pilot data
-• Registry data
-
----
+**p₀ (Exposure prevalence in controls)**  
+Sources:
+• Registry data  
+• Published literature  
+• Pilot data  
 
 **Odds Ratio (OR)**  
-Clinically meaningful OR.
+Should be:
+• Clinically meaningful  
+• Supported by literature  
 
-Examples:
-• OR = 1.5 → moderate association
-• OR = 2.0 → strong association
-• OR = 3.0 → very strong association
+Small OR (e.g., 1.2–1.5) → very large sample size  
+Large OR (e.g., 2–3) → smaller sample size  
 
-Avoid unrealistic OR inflation.
+**Control-to-case ratio (r)**  
+r = n_controls / n_cases  
 
----
-
-**Allocation Ratio (r)**  
-r = controls / cases
-
-• r = 1 → equal design
-• r = 2–4 → improves efficiency in rare diseases
-• Beyond 4 → minimal statistical gain
+• r = 1 → equal numbers  
+• r > 1 → more controls (efficient when cases are rare)  
         """)
 
     # --------------------------------------------------
@@ -1269,16 +1253,16 @@ r = controls / cases
     st.subheader("🎯 Final Sample Size Planning")
 
     p0 = st.number_input(
-        "Exposure Proportion in Controls (p₀)",
+        "Exposure Prevalence in Controls (p₀)",
         min_value=0.0001,
         max_value=0.9999,
-        value=0.2,
+        value=0.30,
         key="cc_p0"
     )
 
     OR = st.number_input(
         "Target Odds Ratio (OR)",
-        min_value=1.01,
+        min_value=0.1,
         value=2.0,
         key="cc_or"
     )
@@ -1290,8 +1274,12 @@ r = controls / cases
         key="cc_ratio"
     )
 
-    if st.button("Calculate Sample Size", key="cc_calc"):
+    if st.button("Calculate Sample Size (Case-Control)", key="cc_calc"):
 
+        # Derive p1
+        p1 = (OR * p0) / (1 - p0 + OR * p0)
+
+        # Z values
         if two_sided:
             Z_alpha = stats.norm.ppf(1 - alpha/2)
         else:
@@ -1299,22 +1287,22 @@ r = controls / cases
 
         Z_beta = stats.norm.ppf(power)
 
-        # Compute p1
-        p1 = (OR * p0) / (1 - p0 + OR * p0)
-
         ln_or = math.log(OR)
 
-        term = (1 / (p0*(1-p0))) + (1 / (ratio * p1*(1-p1)))
+        # Core formula
+        numerator = (Z_alpha + Z_beta)**2 * (
+            (1 / (p0*(1-p0))) +
+            (1 / (ratio * p1*(1-p1)))
+        )
 
-        n1_raw = ((Z_alpha + Z_beta)**2 * term) / (ln_or**2)
-
-        n1 = math.ceil(n1_raw)
-        n2 = math.ceil(ratio * n1)
+        n1 = numerator / (ln_or**2)
+        n2 = ratio * n1
 
         # Dropout adjustment
         n1_adj = math.ceil(n1 / (1 - dropout_rate))
         n2_adj = math.ceil(n2 / (1 - dropout_rate))
 
+        # --------------------------------------------------
         st.markdown("### 🔎 Intermediate Values")
 
         st.write(f"Zα = {round(Z_alpha,4)}")
@@ -1322,28 +1310,33 @@ r = controls / cases
         st.write(f"Estimated p₁ (cases) = {round(p1,4)}")
         st.write(f"log(OR) = {round(ln_or,4)}")
 
+        # Safe LaTeX block
         st.latex(rf"""
         n_1 =
-        \frac{
+        \frac{{
         ({round(Z_alpha,4)} + {round(Z_beta,4)})^2
         \left(
-        \frac{{1}}{{{p0}(1-{p0})}} +
-        \frac{{1}}{{{ratio} \cdot {round(p1,4)}(1-{round(p1,4)})}}
+        \frac{{1}}{{{round(p0,4)}(1-{round(p0,4)})}} +
+        \frac{{1}}{{{round(ratio,4)} \cdot {round(p1,4)}(1-{round(p1,4)})}}
         \right)
-        }
-        {{{round(ln_or,4)}^2}}
+        }}
+        {{({round(ln_or,4)})^2}}
         """)
 
+        # --------------------------------------------------
         st.success(f"Required Cases (n₁): {n1_adj}")
         st.success(f"Required Controls (n₂): {n2_adj}")
         st.write(f"Total Sample Size: {n1_adj + n2_adj}")
 
+        # --------------------------------------------------
         st.markdown("### 📄 Copy for Thesis / Manuscript")
 
         st.code(f"""
-Sample size was calculated for a case–control study using the log odds ratio method.
-Assuming a control exposure proportion of {p0}, a target odds ratio of {OR},
-α={alpha}, power={power}, and a control-to-case ratio of {ratio},
+Sample size was calculated for an unmatched case–control study using the log odds ratio method.
+Assuming an exposure prevalence among controls of {p0},
+a target odds ratio of {OR},
+and a control-to-case ratio of {ratio},
 the required sample size was {n1_adj} cases and {n2_adj} controls
-(after adjusting for {dropout_rate*100:.1f}% anticipated dropout).
+(total {n1_adj + n2_adj}),
+after adjusting for {dropout_rate*100:.1f}% anticipated dropout.
         """)

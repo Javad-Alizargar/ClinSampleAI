@@ -2165,3 +2165,232 @@ and a target odds ratio of OR={OR} (β=ln(OR)),
 the required sample size was {n_adj} participants after adjusting for {dropout_rate*100:.1f}% anticipated dropout.
 Model stability was additionally assessed using an EPV threshold of {epv_target} with {int(n_predictors)} predictors.
         """)
+# ==========================================================
+# SURVIVAL (LOG-RANK) — Full Professional Version
+# ==========================================================
+elif study_type == "Survival (Log-Rank)":
+
+    import scipy.stats as stats
+    import math
+
+    st.header("Survival Analysis — Log-Rank Test Sample Size (Event-Driven)")
+
+    # --------------------------------------------------
+    with st.expander("📘 When to Use This Design", expanded=True):
+        st.markdown("""
+Use this when:
+• Your primary endpoint is **time-to-event** (e.g., death, relapse, hospitalization)
+• You compare **two groups** (treatment vs control, exposed vs unexposed)
+• You plan to use a **log-rank test** (and/or Cox model with HR interpretation)
+
+Typical studies:
+• RCT comparing survival curves
+• Cohort study comparing event-free survival
+
+Key principle:
+✅ **Power is driven mainly by number of events**, not just number of subjects.
+        """)
+
+    # --------------------------------------------------
+    with st.expander("✅ Real Example (clinical)", expanded=True):
+        st.markdown("""
+**Example:** You compare a new therapy vs standard care for time to hospitalization.
+
+From literature:
+• Expected hazard ratio (HR) = 0.70 (30% lower hazard in treatment)
+• Allocation ratio r = n₂/n₁ = 1.0 (equal groups)
+• α = 0.05 two-sided, power = 0.80
+• Over the follow-up, you expect ~40% of participants will experience the event (event fraction = 0.40)
+
+This calculator first computes **required number of events**, then converts to total sample size.
+        """)
+
+    # --------------------------------------------------
+    with st.expander("📐 Mathematical Foundation (Schoenfeld / Freedman Approximation)", expanded=True):
+
+        st.markdown("1) Required number of events (D):")
+        st.latex(r"""
+        D =
+        \frac{(Z_{\alpha} + Z_{\beta})^2}
+        {\left[\ln(HR)\right]^2 \cdot \psi}
+        """)
+
+        st.markdown("Where the allocation term is:")
+        st.latex(r"""
+        \psi = \pi_1 \pi_2
+        """)
+
+        st.markdown("Group allocation proportions:")
+        st.latex(r"""
+        \pi_1 = \frac{1}{1+r}, \quad
+        \pi_2 = \frac{r}{1+r}
+        """)
+
+        st.markdown("2) Convert events to total sample size (N) using expected event fraction f_e:")
+        st.latex(r"""
+        N = \frac{D}{f_e}
+        """)
+
+        st.write("Interpretation of inputs:")
+        st.write("• HR < 1: treatment reduces hazard (benefit)")
+        st.write("• HR > 1: treatment increases hazard (harm)")
+        st.write("• f_e is the expected proportion that will have an event during study follow-up")
+
+    # --------------------------------------------------
+    with st.expander("🧮 How to estimate event fraction (fₑ)", expanded=False):
+
+        st.markdown("""
+Many users do not know event fraction. You can estimate it from:
+• Prior trials reporting event rate during similar follow-up  
+• Registry / cohort data  
+• A simple exponential approximation using median survival and follow-up duration  
+        """)
+
+        tab1, tab2 = st.tabs(["A) I already know event fraction", "B) Estimate from median survival"])
+
+        with tab1:
+            st.markdown("If literature says '40% had an event by 24 months', use fₑ = 0.40.")
+            fe_direct = st.number_input(
+                "Event fraction fₑ (0–1)",
+                min_value=0.01,
+                max_value=0.99,
+                value=0.40,
+                step=0.01,
+                key="logrank_fe_direct"
+            )
+            st.info(f"Using event fraction fₑ = {fe_direct}")
+
+        with tab2:
+            st.markdown("""
+If you only know **median survival time** in the control group and approximate exponential survival:
+• Control hazard ≈ ln(2) / median
+• Event probability over follow-up T: 1 − exp(−hazard × T)
+
+This is a planning approximation.
+            """)
+
+            median_control = st.number_input(
+                "Median survival in control group (same unit as follow-up)",
+                min_value=0.01,
+                value=24.0,
+                step=1.0,
+                key="logrank_median_control"
+            )
+            followup_T = st.number_input(
+                "Planned follow-up duration (T)",
+                min_value=0.01,
+                value=24.0,
+                step=1.0,
+                key="logrank_followup_T"
+            )
+
+            if st.button("Estimate event fraction from median survival", key="logrank_estimate_fe"):
+
+                hazard_c = math.log(2) / median_control
+                fe_est = 1 - math.exp(-hazard_c * followup_T)
+
+                st.success(f"Estimated control-group event fraction over T ≈ {round(fe_est,4)}")
+                st.write(f"Control hazard ≈ ln(2)/median = {round(hazard_c,4)} per time-unit")
+
+                st.markdown("Note: Use this as an approximate planning value for fₑ.")
+
+    # --------------------------------------------------
+    st.markdown("---")
+    st.subheader("🎯 Final Sample Size Planning (Log-Rank)")
+
+    HR = st.number_input(
+        "Target Hazard Ratio (HR)",
+        min_value=0.05,
+        value=0.70,
+        step=0.01,
+        key="logrank_HR"
+    )
+
+    ratio = st.number_input(
+        "Allocation ratio r = n₂/n₁",
+        min_value=0.10,
+        value=1.00,
+        step=0.05,
+        key="logrank_ratio"
+    )
+
+    event_fraction = st.number_input(
+        "Event fraction fₑ (proportion with event during follow-up)",
+        min_value=0.01,
+        max_value=0.99,
+        value=0.40,
+        step=0.01,
+        key="logrank_fe_plan"
+    )
+
+    if st.button("Calculate Sample Size (Log-Rank)", key="logrank_calc"):
+
+        # Z values
+        if two_sided:
+            Z_alpha = stats.norm.ppf(1 - alpha/2)
+        else:
+            Z_alpha = stats.norm.ppf(1 - alpha)
+
+        Z_beta = stats.norm.ppf(power)
+
+        lnHR = math.log(HR)
+
+        if abs(lnHR) < 1e-12:
+            st.error("HR cannot be 1 (no effect). Choose HR ≠ 1.")
+            st.stop()
+
+        # Allocation proportions
+        pi1 = 1 / (1 + ratio)
+        pi2 = ratio / (1 + ratio)
+        psi = pi1 * pi2
+
+        # Required events
+        D_raw = ((Z_alpha + Z_beta) ** 2) / ((lnHR ** 2) * psi)
+        D = math.ceil(D_raw)
+
+        # Convert to total sample size
+        N_raw = D / event_fraction
+        N = math.ceil(N_raw)
+
+        # Dropout adjustment
+        N_adj = math.ceil(N / (1 - dropout_rate))
+
+        # Split groups
+        n1 = math.ceil(N_adj * pi1)
+        n2 = math.ceil(N_adj * pi2)
+
+        st.markdown("### 🔎 Intermediate Values")
+
+        st.write(f"Zα = {round(Z_alpha,4)}")
+        st.write(f"Zβ = {round(Z_beta,4)}")
+        st.write(f"ln(HR) = {round(lnHR,4)}")
+        st.write(f"π₁ = {round(pi1,4)} , π₂ = {round(pi2,4)} , ψ = π₁π₂ = {round(psi,4)}")
+        st.write(f"Required events (D) before rounding = {round(D_raw,2)}")
+
+        st.latex(rf"""
+        D =
+        \frac{{({round(Z_alpha,4)} + {round(Z_beta,4)})^2}}
+        {{({round(lnHR,4)})^2 \cdot {round(psi,4)}}}
+        """)
+
+        st.latex(rf"""
+        N = \frac{{D}}{{f_e}} = \frac{{{D}}}{{{round(event_fraction,4)}}}
+        """)
+
+        st.success(f"Required total events (D): {D}")
+        st.success(f"Total sample size (adjusted): {N_adj}")
+
+        st.write(f"Group 1 (n₁): {n1}")
+        st.write(f"Group 2 (n₂): {n2}")
+        st.write(f"Total: {n1 + n2}")
+
+        st.markdown("### 📄 Copy for Thesis / Manuscript")
+
+        sided_txt = "two-sided" if two_sided else "one-sided"
+
+        st.code(f"""
+Sample size for survival analysis was planned using the log-rank test ({sided_txt}).
+With α={alpha} and power={power}, assuming a hazard ratio of HR={HR} and allocation ratio r={ratio},
+the required number of events was {D}. Given an expected event fraction of {event_fraction} over follow-up,
+the total required sample size was {N_adj} participants after adjusting for {dropout_rate*100:.1f}% anticipated dropout.
+        """)

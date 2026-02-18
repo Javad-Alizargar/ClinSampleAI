@@ -1887,48 +1887,86 @@ With α={alpha} and power={power}, assuming an effect size of f²={f2} and {int(
 the required sample size was {n_adj} participants after adjusting for {dropout_rate*100:.1f}% anticipated dropout.
         """)
 # ==========================================================
-# LOGISTIC REGRESSION (Advanced Wald Method + EPV Check)
+# LOGISTIC REGRESSION (Full Upgrade: Meaning + Example + Derivation Tools)
 # ==========================================================
 elif study_type == "Logistic Regression":
 
     import scipy.stats as stats
     import math
 
-    st.header("Logistic Regression — Advanced Sample Size Planning")
+    st.header("Logistic Regression — Power-Based Sample Size (Beyond EPV)")
 
     # --------------------------------------------------
-    with st.expander("📘 When to Use This Design", expanded=True):
+    with st.expander("📘 What this calculator does (in plain language)", expanded=True):
         st.markdown("""
-Used when outcome is binary (0/1) and analysis will be logistic regression.
+This module estimates the **minimum sample size** needed to detect an association in a logistic regression model,
+using a **power-based Wald approximation**.
 
-Examples:
-• CKD (yes/no) predicted by SII, age, BMI
-• Mortality predicted by biomarkers
-• Disease presence predicted by risk factors
+It is appropriate when:
+• Outcome is **binary** (e.g., CKD yes/no, mortality yes/no)  
+• You have an expected **effect size** (Odds Ratio) from pilot/literature  
+• You know the **baseline probability** (event prevalence) of the outcome
 
-This module estimates sample size based on:
-• Target Odds Ratio (OR)
-• Baseline event probability
-• Wald test approximation
-• Number of predictors
+This is a planning tool. Final modeling quality still depends on event count, predictor stability, and design.
         """)
 
     # --------------------------------------------------
-    with st.expander("📐 Mathematical Foundation (Wald Approximation)", expanded=True):
+    with st.expander("✅ Real Example (clinical)", expanded=True):
+        st.markdown("""
+**Example:** You want to study whether **high SII** is associated with **CKD (yes/no)**.
 
-        st.markdown("Effect size in logistic regression is based on log odds ratio:")
+From literature/pilot:
+• CKD prevalence in your target population is about **20%** → baseline event probability **p = 0.20**  
+• You want to detect **OR = 1.50** for CKD per **1 SD increase** in SII (or per clinically defined exposure)  
+• α = 0.05 (two-sided), power = 0.80, dropout 10%
+
+This calculator returns the total sample size required.
+Then we also check EPV (events per variable) for stability.
+        """)
+
+    # --------------------------------------------------
+    with st.expander("📌 Meaning of key inputs", expanded=False):
+        st.markdown("""
+### 1) Baseline probability (event probability, p)
+This is the expected probability that the **outcome = 1** in your target population.
+
+Examples:
+• CKD prevalence = 0.20 → p = 0.20  
+• Mortality rate over follow-up = 0.08 → p = 0.08  
+• Disease prevalence in a clinic = 0.35 → p = 0.35  
+
+How to get p:
+• Pilot study: events / total  
+• Literature prevalence/incidence  
+• Registry / hospital statistics
+
+### 2) Target Odds Ratio (OR)
+This is the effect size you want to detect.
+
+Interpretation depends on predictor type:
+
+**Binary predictor** (exposed vs unexposed):
+• OR = 2.0 means exposed group has **2× higher odds** of outcome than unexposed.
+
+**Continuous predictor** (per 1 unit):
+• OR = 1.2 per 1-unit increase means each unit multiplies odds by 1.2.
+
+**Per SD** reporting:
+Some papers report OR per 1 SD increase. That is directly usable.
+
+Important:
+• OR close to 1.0 (e.g., 1.05–1.10) requires very large n.
+        """)
+
+    # --------------------------------------------------
+    with st.expander("📐 Mathematical Foundation (Wald Approximation)", expanded=False):
+        st.markdown("Logistic regression effect is expressed as a log-odds coefficient:")
 
         st.latex(r"""
         \beta = \ln(OR)
         """)
 
-        st.markdown("Variance of coefficient:")
-
-        st.latex(r"""
-        Var(\beta) \approx \frac{1}{n \cdot p(1-p) \cdot x^2}
-        """)
-
-        st.markdown("Sample size formula (Wald test):")
+        st.markdown("Planning formula (power-based Wald approximation):")
 
         st.latex(r"""
         n =
@@ -1936,88 +1974,102 @@ This module estimates sample size based on:
         (Z_{\alpha} + Z_{\beta})^2
         }
         {
-        p(1-p) \cdot (\ln(OR))^2
+        p(1-p)\cdot (\ln(OR))^2
         }
         """)
 
-        st.write("Where:")
-        st.write("• p = event probability")
-        st.write("• OR = target odds ratio")
-        st.write("• ln(OR) = log effect size")
-        st.write("• Zα and Zβ as usual")
+        st.write("Where p is the overall event probability (outcome prevalence) used for planning.")
 
     # --------------------------------------------------
-    with st.expander("🧮 Compute Event Probability from Baseline + OR", expanded=False):
+    with st.expander("🧮 Derive inputs from pilot / literature outputs", expanded=True):
 
-        st.markdown("""
-If you know baseline risk (p₀) and OR,
-you can compute exposed group probability (p₁):
+        tabA, tabB, tabC = st.tabs([
+            "A) p from pilot counts",
+            "B) OR from two risks (p0, p1)",
+            "C) Convert OR scale (per SD / per unit)"
+        ])
 
-p₁ = (OR × p₀) / (1 - p₀ + OR × p₀)
-        """)
+        # -------------------------
+        # A) p from pilot counts
+        # -------------------------
+        with tabA:
+            st.markdown("If you have pilot counts, event probability is simply events / total.")
+            events = st.number_input("Number of events (outcome=1)", min_value=0, value=20, step=1, key="logreg_events")
+            total = st.number_input("Total sample size", min_value=1, value=100, step=1, key="logreg_total")
 
-        st.latex(r"""
-        p_1 =
-        \frac{OR \cdot p_0}
-        {1 - p_0 + OR \cdot p_0}
-        """)
+            if st.button("Compute p (event probability)", key="logreg_compute_p_from_counts"):
+                p_from_counts = events / total
+                st.success(f"Event probability p = {round(p_from_counts,4)}")
 
-        p0_calc = st.number_input(
-            "Baseline Event Probability (p₀)",
-            min_value=0.0001,
-            max_value=0.9999,
-            value=0.20,
-            key="logreg_p0_calc"
-        )
+        # -------------------------
+        # B) OR from two risks
+        # -------------------------
+        with tabB:
+            st.markdown("""
+If a paper reports event risks in two groups (e.g., exposed vs unexposed),
+you can compute OR from p0 and p1:
 
-        OR_calc = st.number_input(
-            "Target Odds Ratio",
-            min_value=0.01,
-            value=1.50,
-            key="logreg_or_calc"
-        )
+OR = (p1/(1-p1)) / (p0/(1-p0))
+            """)
 
-        if st.button("Compute p₁", key="logreg_compute_p1"):
+            p0 = st.number_input("Risk in reference group (p₀)", min_value=0.0001, max_value=0.9999, value=0.20, key="logreg_p0_from_risks")
+            p1 = st.number_input("Risk in exposed group (p₁)", min_value=0.0001, max_value=0.9999, value=0.30, key="logreg_p1_from_risks")
 
-            p1_calc = (OR_calc * p0_calc) / (1 - p0_calc + OR_calc * p0_calc)
-            st.success(f"Estimated p₁ = {round(p1_calc,4)}")
+            if st.button("Compute OR from p₀ and p₁", key="logreg_compute_or_from_risks"):
+                or_from_risks = (p1/(1-p1)) / (p0/(1-p0))
+                st.success(f"Derived OR = {round(or_from_risks,4)}")
+
+        # -------------------------
+        # C) Convert OR scale
+        # -------------------------
+        with tabC:
+            st.markdown("""
+Sometimes papers report OR using different scaling:
+
+**Case 1: OR per 1 SD increase**  
+If you want OR per 1 unit, and SD is known:
+OR_per_unit = exp( ln(OR_per_SD) / SD )
+
+**Case 2: OR per IQR increase**  
+If you want OR per 1 unit and IQR is known:
+OR_per_unit = exp( ln(OR_per_IQR) / IQR )
+
+This helps you harmonize effect sizes across studies.
+            """)
+
+            or_reported = st.number_input("Reported OR", min_value=0.01, value=1.50, key="logreg_or_reported")
+            scale = st.selectbox("Reported OR is per:", ["1 SD", "IQR"], key="logreg_scale_type")
+            scale_value = st.number_input("SD or IQR value", min_value=0.0001, value=10.0, key="logreg_scale_value")
+
+            if st.button("Convert to OR per 1 unit", key="logreg_convert_or"):
+                ln_or = math.log(or_reported)
+                ln_or_per_unit = ln_or / scale_value
+                or_per_unit = math.exp(ln_or_per_unit)
+                st.success(f"OR per 1 unit ≈ {round(or_per_unit,4)}")
 
     # --------------------------------------------------
-    with st.expander("📊 Parameter Guidance", expanded=False):
+    with st.expander("⚠ Important practical note (what this formula does NOT include)", expanded=False):
         st.markdown("""
-**Event Rate (p)**
+This power-based Wald formula is a **planning approximation**.
+It does not fully account for:
+• multiple predictors correlation (multicollinearity)  
+• nonlinearity / splines / interactions  
+• model selection or high-dimensional screening  
+• rare events correction / penalized regression  
 
-Sources:
-• Registry
-• Published prevalence
-• Pilot study
-
-Avoid unrealistically small p unless justified.
-
----
-
-**Odds Ratio**
-
-Should be clinically meaningful.
-OR near 1.1 requires very large sample size.
-
----
-
-**Number of Predictors**
-
-Include variables you will retain in final model.
+That’s why we also provide an EPV stability check.
         """)
 
     # --------------------------------------------------
     st.markdown("---")
-    st.subheader("🎯 Final Sample Size Planning")
+    st.subheader("🎯 Final Sample Size Planning (use your best p and OR)")
 
     p_event = st.number_input(
-        "Overall Event Probability (p)",
+        "Event Probability p (Outcome prevalence)",
         min_value=0.0001,
         max_value=0.9999,
         value=0.20,
-        key="logreg_p_event"
+        key="logreg_p_event_plan"
     )
 
     OR = st.number_input(
@@ -2028,13 +2080,22 @@ Include variables you will retain in final model.
     )
 
     n_predictors = st.number_input(
-        "Number of Predictors",
+        "Number of Predictors in Final Model",
         min_value=1,
         value=5,
-        key="logreg_predictors"
+        step=1,
+        key="logreg_predictors_plan"
     )
 
-    if st.button("Calculate Sample Size (Logistic Regression)", key="logreg_calc_n"):
+    epv_target = st.number_input(
+        "EPV threshold for stability (common defaults 10–20)",
+        min_value=5,
+        value=10,
+        step=1,
+        key="logreg_epv_target"
+    )
+
+    if st.button("Calculate Sample Size (Logistic Regression)", key="logreg_calc_final"):
 
         # Z values
         if two_sided:
@@ -2046,65 +2107,61 @@ Include variables you will retain in final model.
 
         ln_or = math.log(OR)
 
-        if ln_or == 0:
-            st.error("OR cannot equal 1 (no effect).")
-        else:
+        if abs(ln_or) < 1e-12:
+            st.error("OR cannot be 1 (no effect). Choose an OR different from 1.")
+            st.stop()
 
-            # Wald formula
-            n_raw = ((Z_alpha + Z_beta) ** 2) / (
-                p_event * (1 - p_event) * (ln_or ** 2)
+        p_term = p_event * (1 - p_event)
+
+        if p_term <= 0:
+            st.error("p must be strictly between 0 and 1.")
+            st.stop()
+
+        # Wald planning formula
+        n_raw = ((Z_alpha + Z_beta) ** 2) / (p_term * (ln_or ** 2))
+        n_before_dropout = math.ceil(n_raw)
+        n_adj = math.ceil(n_before_dropout / (1 - dropout_rate))
+
+        # EPV check
+        required_events = epv_target * int(n_predictors)
+        expected_events = n_adj * p_event
+
+        st.markdown("### 🔎 Intermediate Values")
+        st.write(f"Zα = {round(Z_alpha,4)}")
+        st.write(f"Zβ = {round(Z_beta,4)}")
+        st.write(f"ln(OR) = {round(ln_or,4)}")
+        st.write(f"p(1-p) = {round(p_term,4)}")
+
+        st.latex(rf"""
+        n =
+        \frac{{({round(Z_alpha,4)} + {round(Z_beta,4)})^2}}
+        {{{round(p_term,4)}\cdot ({round(ln_or,4)})^2}}
+        """)
+
+        st.success(f"Required Sample Size (adjusted): {n_adj}")
+        st.write(f"Before Dropout Adjustment: {n_before_dropout}")
+
+        st.markdown("### 🔎 EPV Stability Check")
+        st.write(f"Planned predictors: {int(n_predictors)}")
+        st.write(f"EPV target: {int(epv_target)}")
+        st.write(f"Required events = EPV × predictors = {required_events}")
+        st.write(f"Expected events = n × p = {round(expected_events,1)}")
+
+        if expected_events < required_events:
+            st.warning(
+                "⚠ EPV stability criterion NOT met. "
+                "Consider increasing sample size, reducing predictors, or using penalized regression."
             )
+        else:
+            st.success("✔ EPV stability criterion met.")
 
-            n = math.ceil(n_raw)
+        st.markdown("### 📄 Copy for Thesis / Manuscript")
+        sided_txt = "two-sided" if two_sided else "one-sided"
 
-            # Dropout adjustment
-            n_adj = math.ceil(n / (1 - dropout_rate))
-
-            # EPV check
-            required_events = 10 * n_predictors
-            total_events = n_adj * p_event
-
-            st.markdown("### 🔎 Intermediate Values")
-
-            st.write(f"Zα = {round(Z_alpha,4)}")
-            st.write(f"Zβ = {round(Z_beta,4)}")
-            st.write(f"ln(OR) = {round(ln_or,4)}")
-            st.write(f"p(1-p) = {round(p_event*(1-p_event),4)}")
-
-            st.latex(rf"""
-            n =
-            \frac{{({round(Z_alpha,4)} + {round(Z_beta,4)})^2}}
-            {{{round(p_event*(1-p_event),4)} \cdot ({round(ln_or,4)})^2}}
-            """)
-
-            st.success(f"Required Sample Size (adjusted): {n_adj}")
-            st.write(f"Before Dropout Adjustment: {n}")
-
-            # EPV safety check
-            st.markdown("### 🔎 EPV Stability Check")
-
-            st.write(f"Required events (10×predictors): {required_events}")
-            st.write(f"Expected events: {round(total_events,1)}")
-
-            if total_events < required_events:
-                st.warning(
-                    "⚠ EPV rule not satisfied (events < 10 per predictor). "
-                    "Model may be unstable."
-                )
-            else:
-                st.success("✔ EPV rule satisfied.")
-
-            # Thesis paragraph
-            sided_txt = "two-sided" if two_sided else "one-sided"
-
-            st.markdown("### 📄 Copy for Thesis / Manuscript")
-
-            st.code(f"""
-Sample size for logistic regression ({sided_txt}) was calculated using
-Wald approximation based on a target odds ratio of {OR}
-and an event probability of {p_event}.
-With α={alpha} and power={power},
-the required sample size was {n_adj} participants
-(after adjusting for {dropout_rate*100:.1f}% anticipated dropout).
-An EPV stability check was performed based on {n_predictors} predictors.
-            """)
+        st.code(f"""
+Sample size for logistic regression ({sided_txt}) was planned using a power-based Wald approximation.
+With α={alpha} and power={power}, assuming an outcome event probability of p={p_event}
+and a target odds ratio of OR={OR} (β=ln(OR)),
+the required sample size was {n_adj} participants after adjusting for {dropout_rate*100:.1f}% anticipated dropout.
+Model stability was additionally assessed using an EPV threshold of {epv_target} with {int(n_predictors)} predictors.
+        """)

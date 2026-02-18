@@ -1026,11 +1026,10 @@ Design:
         """)
 
         st.latex(r"n_2 = r \cdot n_1")
-
         st.latex(r"\bar{p} = \frac{p_1 + p_2}{2}")
 
         st.write("Where:")
-        st.latex(r"r = \frac{n_2}{n_1} \quad \text{(allocation ratio)}")
+        st.latex(r"r = \frac{n_2}{n_1}")
         st.latex(r"Z_{\alpha} = \Phi^{-1}(1-\alpha/2)")
         st.latex(r"Z_{\beta} = \Phi^{-1}(power)")
 
@@ -1068,10 +1067,10 @@ Design:
 **p₁ and p₂**
 
 Sources:
-• RCTs
-• Cohort studies
-• Registry data
-• Pilot study
+• RCTs  
+• Cohort studies  
+• Registry data  
+• Pilot study  
 
 Avoid unrealistic effect sizes.
 
@@ -1142,6 +1141,7 @@ Unequal allocation increases total sample size.
         st.write(f"Zβ = {round(Z_beta,4)}")
         st.write(f"Pooled proportion (p̄) = {round(p_bar,4)}")
 
+        # Safe LaTeX
         latex_formula = f"""
         n_1 =
         \\left(1 + \\frac{{1}}{{{ratio}}}\\right)

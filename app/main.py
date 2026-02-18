@@ -1676,3 +1676,213 @@ Sample size was calculated for detecting a Pearson correlation using Fisher’s 
 With α={alpha} and power={power}, and assuming a target correlation of r={r_target},
 the required sample size was {n_adj} participants after adjusting for {dropout_rate*100:.1f}% anticipated dropout.
         """)
+# ==========================================================
+# LINEAR REGRESSION (Cohen's f²)
+# ==========================================================
+elif study_type == "Linear Regression":
+
+    import scipy.stats as stats
+    import math
+
+    st.header("Multiple Linear Regression — Sample Size via Cohen’s f²")
+
+    # --------------------------------------------------
+    with st.expander("📘 When to Use This Design", expanded=True):
+        st.markdown("""
+Used when your primary analysis is **multiple linear regression** (continuous outcome)
+and you want adequate power to detect an overall model effect or a set of predictors.
+
+Examples:
+• Predicting HbA1c from TyG, BMI, age, sex  
+• Predicting blood pressure from waist circumference, smoking, lipids  
+• Predicting depression score from biomarkers + covariates  
+
+Typical assumptions:
+• Independent observations  
+• Linear relationship is a reasonable approximation  
+• Residuals approximately normal (or sample sufficiently large)  
+• Predictors not perfectly collinear  
+        """)
+
+    # --------------------------------------------------
+    with st.expander("📐 Mathematical Formula (Cohen’s f²)", expanded=True):
+
+        st.markdown("Cohen’s f² definition (from R²):")
+        st.latex(r"""
+        f^2 = \frac{R^2}{1 - R^2}
+        """)
+
+        st.markdown("Sample size planning (large-sample z-approximation):")
+        st.latex(r"""
+        n =
+        \frac{(Z_{\alpha} + Z_{\beta})^2}{f^2} + p + 1
+        """)
+
+        st.write("Where:")
+        st.write("• R² = expected proportion of variance explained by predictors")
+        st.write("• f² = Cohen’s effect size for regression")
+        st.write("• p = number of predictors (planned predictors in the model)")
+        st.write("• Zα depends on one/two-sided α; Zβ depends on desired power")
+
+        st.markdown("Optional: partial effect (incremental R²) for a block of predictors:")
+        st.latex(r"""
+        f^2_{\text{partial}} = \frac{\Delta R^2}{1 - R^2_{\text{full}}}
+        """)
+
+    # --------------------------------------------------
+    with st.expander("🧮 Compute Cohen’s f² from R² (and from ΔR²)", expanded=False):
+
+        st.markdown("""
+Most users do not directly know f², but they often have an estimate of **R²** from literature or pilot models.
+
+You can compute:
+• **Overall f²** from overall R²  
+• **Partial f²** from incremental ΔR² (e.g., effect of a predictor block)  
+        """)
+
+        tab1, tab2 = st.tabs(["Compute f² from R²", "Compute partial f² from ΔR²"])
+
+        with tab1:
+            r2 = st.number_input(
+                "Overall R² (0–0.95 recommended)",
+                min_value=0.0,
+                max_value=0.99,
+                value=0.20,
+                step=0.01,
+                key="linreg_r2_overall"
+            )
+
+            if st.button("Compute f² (overall)", key="linreg_calc_f2_overall"):
+                if r2 >= 0.999:
+                    st.error("R² is too close to 1. Use a realistic value (e.g., < 0.90).")
+                else:
+                    f2_overall = r2 / (1 - r2) if r2 < 1 else float("inf")
+                    st.success(f"Cohen’s f² (overall) = {round(f2_overall,4)}")
+
+                    st.markdown("Interpretation heuristics (context dependent):")
+                    st.write("• f² ≈ 0.02 small")
+                    st.write("• f² ≈ 0.15 medium")
+                    st.write("• f² ≈ 0.35 large")
+
+                    st.latex(rf"""
+                    f^2 = \frac{{{round(r2,4)}}}{{1-{round(r2,4)}}}
+                    """)
+
+        with tab2:
+            r2_full = st.number_input(
+                "Full model R² (R²_full)",
+                min_value=0.0,
+                max_value=0.99,
+                value=0.30,
+                step=0.01,
+                key="linreg_r2_full"
+            )
+            delta_r2 = st.number_input(
+                "Incremental ΔR² (added block contribution)",
+                min_value=0.0,
+                max_value=0.50,
+                value=0.05,
+                step=0.01,
+                key="linreg_delta_r2"
+            )
+
+            if st.button("Compute partial f²", key="linreg_calc_f2_partial"):
+                if r2_full >= 0.999:
+                    st.error("R²_full is too close to 1. Use a realistic value.")
+                elif delta_r2 <= 0:
+                    st.error("ΔR² must be > 0 to represent an added effect.")
+                elif delta_r2 > r2_full:
+                    st.error("ΔR² cannot exceed R²_full.")
+                else:
+                    f2_partial = delta_r2 / (1 - r2_full)
+                    st.success(f"Partial Cohen’s f² = {round(f2_partial,4)}")
+
+                    st.markdown("Interpretation heuristics (often used):")
+                    st.write("• 0.02 small")
+                    st.write("• 0.15 medium")
+                    st.write("• 0.35 large")
+
+                    st.latex(rf"""
+                    f^2_{{partial}} = \frac{{{round(delta_r2,4)}}}{{1-{round(r2_full,4)}}}
+                    """)
+
+    # --------------------------------------------------
+    with st.expander("📊 Parameter Guidance (Evidence-Based Choices)", expanded=False):
+        st.markdown("""
+**R² source hierarchy (best → acceptable):**
+1) Pilot regression model on similar population  
+2) Published regression model (same outcome + similar predictors)  
+3) Meta-analysis / pooled models  
+4) Conservative planning (smaller R² → larger sample)
+
+**Predictor count (p):**
+Include the predictors you plan to interpret or keep in the final model (not temporary screeners).
+
+**Practical note:**
+If you plan model selection / many candidate predictors, you often need more sample size than the basic formula suggests.
+        """)
+
+    # --------------------------------------------------
+    st.markdown("---")
+    st.subheader("🎯 Final Sample Size Planning")
+
+    f2 = st.number_input(
+        "Cohen’s f² for Planning",
+        min_value=0.0001,
+        value=0.15,
+        step=0.01,
+        key="linreg_f2_plan"
+    )
+
+    p = st.number_input(
+        "Number of Predictors (p)",
+        min_value=1,
+        value=5,
+        step=1,
+        key="linreg_p"
+    )
+
+    if st.button("Calculate Sample Size (Linear Regression)", key="linreg_calc_n"):
+
+        # Z values
+        if two_sided:
+            Z_alpha = stats.norm.ppf(1 - alpha/2)
+        else:
+            Z_alpha = stats.norm.ppf(1 - alpha)
+
+        Z_beta = stats.norm.ppf(power)
+
+        # Sample size formula
+        n_raw = ((Z_alpha + Z_beta) ** 2) / f2 + p + 1
+        n = math.ceil(n_raw)
+
+        # Dropout adjustment
+        n_adj = math.ceil(n / (1 - dropout_rate))
+
+        # --------------------------------------------------
+        st.markdown("### 🔎 Intermediate Values")
+        st.write(f"Zα = {round(Z_alpha,4)}")
+        st.write(f"Zβ = {round(Z_beta,4)}")
+        st.write(f"f² = {round(f2,4)}")
+        st.write(f"p = {int(p)}")
+        st.write(f"n (before dropout) = {n}")
+
+        st.latex(rf"""
+        n =
+        \frac{{({round(Z_alpha,4)} + {round(Z_beta,4)})^2}}{{{round(f2,4)}}}
+        + {int(p)} + 1
+        """)
+
+        st.success(f"Required Sample Size (adjusted): {n_adj}")
+        st.write(f"Before Dropout Adjustment: {n}")
+
+        # --------------------------------------------------
+        st.markdown("### 📄 Copy for Thesis / Manuscript")
+
+        sided_txt = "two-sided" if two_sided else "one-sided"
+
+        st.code(f"""
+Sample size was calculated for multiple linear regression ({sided_txt}) using Cohen’s f² method.
+With α={alpha} and power={power}, assuming an effect size of f²={f2} and {int(p)} predictors,
+the required sample size was {n_adj} participants after adjusting for {dropout_rate*100:.1f}% anticipated dropout.
+        """)

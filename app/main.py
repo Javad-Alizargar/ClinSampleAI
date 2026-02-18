@@ -21,6 +21,7 @@ from calculators.continuous.paired_mean import calculate_paired_mean
 from calculators.continuous.anova_oneway import calculate_anova_oneway
 # Binary calculators
 from calculators.binary.one_proportion import calculate_one_proportion
+from calculators.binary.two_proportions import calculate_two_proportions
 
 # Templates
 from templates.paragraph_templates import (

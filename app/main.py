@@ -983,3 +983,189 @@ Assuming a reference proportion of {p0} and an expected proportion of {p1},
 the required sample size was {result['n_required']} participants
 (after adjusting for {dropout_rate*100:.1f}% anticipated dropout).
         """)
+# ==========================================================
+# TWO PROPORTIONS (Two Independent Groups)
+# ==========================================================
+elif study_type == "Two Proportions":
+
+    import scipy.stats as stats
+    import math
+
+    st.header("Two Independent Proportions")
+
+    # --------------------------------------------------
+    with st.expander("📘 When to Use This Design", expanded=True):
+        st.markdown("""
+Used when comparing proportions between two independent groups.
+
+Examples:
+• Treatment vs control event rate  
+• Smoking rate in men vs women  
+• Complication rate between two techniques  
+
+Design:
+• Two independent groups  
+• Binary outcome  
+• Comparing p₁ vs p₂  
+        """)
+
+    # --------------------------------------------------
+    with st.expander("📐 Mathematical Formula (Pooled Normal Approximation)", expanded=True):
+
+        st.latex(r"""
+        n_1 =
+        \left(1 + \frac{1}{r}\right)
+        \frac{
+        \left(
+        Z_{\alpha}\sqrt{2\bar{p}(1-\bar{p})}
+        +
+        Z_{\beta}\sqrt{p_1(1-p_1)+p_2(1-p_2)}
+        \right)^2
+        }
+        {(p_1 - p_2)^2}
+        """)
+
+        st.latex(r"n_2 = r \cdot n_1")
+
+        st.latex(r"\bar{p} = \frac{p_1 + p_2}{2}")
+
+        st.write("Where:")
+        st.latex(r"r = \frac{n_2}{n_1} \quad \text{(allocation ratio)}")
+        st.latex(r"Z_{\alpha} = \Phi^{-1}(1-\alpha/2)")
+        st.latex(r"Z_{\beta} = \Phi^{-1}(power)")
+
+    # --------------------------------------------------
+    with st.expander("🧮 Compute Risk Difference (Δ)", expanded=False):
+
+        p1_calc = st.number_input(
+            "Proportion Group 1 (p₁)",
+            min_value=0.0001,
+            max_value=0.9999,
+            value=0.30,
+            key="twoprop_p1_calc"
+        )
+
+        p2_calc = st.number_input(
+            "Proportion Group 2 (p₂)",
+            min_value=0.0001,
+            max_value=0.9999,
+            value=0.20,
+            key="twoprop_p2_calc"
+        )
+
+        if st.button("Compute Risk Difference", key="twoprop_delta_btn"):
+
+            delta_raw = p1_calc - p2_calc
+            delta_abs = abs(delta_raw)
+
+            st.write(f"Raw Risk Difference = {round(delta_raw,4)}")
+            st.write(f"Absolute Δ used in planning = {round(delta_abs,4)}")
+
+    # --------------------------------------------------
+    with st.expander("📊 Parameter Guidance", expanded=False):
+
+        st.markdown("""
+**p₁ and p₂**
+
+Sources:
+• RCTs
+• Cohort studies
+• Registry data
+• Pilot study
+
+Avoid unrealistic effect sizes.
+
+---
+
+**Allocation Ratio (r)**
+
+r = n₂ / n₁
+
+• r = 1 → equal allocation  
+• r > 1 → more participants in group 2  
+• r < 1 → more participants in group 1  
+
+Unequal allocation increases total sample size.
+        """)
+
+    # --------------------------------------------------
+    st.markdown("---")
+    st.subheader("🎯 Final Sample Size Planning")
+
+    p1 = st.number_input(
+        "Proportion Group 1 (p₁)",
+        min_value=0.0001,
+        max_value=0.9999,
+        value=0.30,
+        key="twoprop_p1_final"
+    )
+
+    p2 = st.number_input(
+        "Proportion Group 2 (p₂)",
+        min_value=0.0001,
+        max_value=0.9999,
+        value=0.20,
+        key="twoprop_p2_final"
+    )
+
+    ratio = st.number_input(
+        "Allocation Ratio (n₂ / n₁)",
+        min_value=0.1,
+        value=1.0,
+        key="twoprop_ratio"
+    )
+
+    if st.button("Calculate Sample Size", key="twoprop_calc_btn"):
+
+        delta_used = abs(p1 - p2)
+        p_bar = (p1 + p2) / 2
+
+        result = calculate_two_proportions(
+            alpha,
+            power,
+            p1,
+            p2,
+            ratio,
+            two_sided,
+            dropout_rate
+        )
+
+        if two_sided:
+            Z_alpha = stats.norm.ppf(1 - alpha/2)
+        else:
+            Z_alpha = stats.norm.ppf(1 - alpha)
+
+        Z_beta = stats.norm.ppf(power)
+
+        st.markdown("### 🔎 Intermediate Values")
+        st.write(f"Zα = {round(Z_alpha,4)}")
+        st.write(f"Zβ = {round(Z_beta,4)}")
+        st.write(f"Pooled proportion (p̄) = {round(p_bar,4)}")
+
+        latex_formula = f"""
+        n_1 =
+        \\left(1 + \\frac{{1}}{{{ratio}}}\\right)
+        \\frac{{
+        \\left(
+        {round(Z_alpha,4)}\\sqrt{{2\\cdot{round(p_bar,4)}(1-{round(p_bar,4)})}}
+        +
+        {round(Z_beta,4)}\\sqrt{{{p1}(1-{p1})+{p2}(1-{p2})}}
+        \\right)^2
+        }}
+        {{({round(delta_used,4)})^2}}
+        """
+
+        st.latex(latex_formula)
+
+        st.success(f"Group 1 Required: {result['n_group1']}")
+        st.success(f"Group 2 Required: {result['n_group2']}")
+        st.write("Total Sample Size:", result["n_total"])
+
+        st.markdown("### 📄 Copy for Thesis / Manuscript")
+
+        st.code(f"""
+Sample size was calculated for comparison of two independent proportions with α={alpha} and power={power}.
+Assuming event rates of {p1} and {p2} in the two groups and allocation ratio {ratio},
+the required sample size was {result['n_group1']} in group 1 and {result['n_group2']} in group 2
+(after adjusting for {dropout_rate*100:.1f}% anticipated dropout).
+        """)

@@ -1516,3 +1516,163 @@ and {n2_adj} in the exposed group
 (total {n1_adj + n2_adj}),
 after adjusting for {dropout_rate*100:.1f}% anticipated dropout.
         """)
+# ==========================================================
+# CORRELATION (Fisher z)
+# ==========================================================
+elif study_type == "Correlation":
+
+    import scipy.stats as stats
+    import math
+
+    st.header("Correlation (Pearson r) — Sample Size via Fisher z-transform")
+
+    # --------------------------------------------------
+    with st.expander("📘 When to Use This Design", expanded=True):
+        st.markdown("""
+Used when your primary question is whether the **correlation** between two continuous variables
+differs from 0 (or from a reference correlation).
+
+Examples:
+• Correlation between TyG index and HOMA-IR  
+• Correlation between CRP and systolic blood pressure  
+• Correlation between biomarker level and symptom score  
+
+Assumptions (typical Pearson correlation planning):
+• Independent observations  
+• Approximately bivariate normality (or large enough sample for robustness)  
+• Linear association is meaningful  
+        """)
+
+    # --------------------------------------------------
+    with st.expander("📐 Mathematical Formula (Fisher z)", expanded=True):
+
+        st.markdown("Fisher z-transform of correlation:")
+
+        st.latex(r"""
+        z = \frac{1}{2}\ln\left(\frac{1+r}{1-r}\right)
+        """)
+
+        st.markdown("Sample size formula (testing r against 0):")
+
+        st.latex(r"""
+        n =
+        \frac{(Z_{\alpha} + Z_{\beta})^2}{z^2} + 3
+        """)
+
+        st.write("Where:")
+        st.latex(r"Z_{\alpha} = \Phi^{-1}(1-\alpha/2)\ \text{(two-sided)}")
+        st.latex(r"Z_{\alpha} = \Phi^{-1}(1-\alpha)\ \text{(one-sided)}")
+        st.latex(r"Z_{\beta} = \Phi^{-1}(\text{power})")
+        st.latex(r"r = \text{target correlation (planning effect)}")
+
+    # --------------------------------------------------
+    with st.expander("📊 Choosing r (Effect Size) — Practical Guidance", expanded=False):
+        st.markdown("""
+**Target correlation (r)** is your expected or minimally meaningful correlation.
+
+How to obtain r:
+• From previous published studies reporting correlation  
+• From pilot study correlation  
+• From meta-analysis / systematic review  
+• From domain knowledge (minimal meaningful association)
+
+Interpretation heuristics (context-dependent):
+• |r| ≈ 0.10 → small  
+• |r| ≈ 0.30 → moderate  
+• |r| ≈ 0.50 → large  
+
+Notes:
+• Smaller |r| → much larger n  
+• Planning should use a **conservative (smaller)** |r| if unsure  
+        """)
+
+    # --------------------------------------------------
+    with st.expander("🧮 Convert r ↔ Fisher z (for intuition)", expanded=False):
+
+        r_demo = st.number_input(
+            "Enter a correlation r to see Fisher z",
+            min_value=-0.95,
+            max_value=0.95,
+            value=0.30,
+            step=0.01,
+            key="corr_demo_r"
+        )
+
+        z_demo = 0.5 * math.log((1 + r_demo) / (1 - r_demo))
+        st.write(f"Fisher z = {round(z_demo,4)}")
+
+        st.markdown("Inverse transform (z → r):")
+        st.latex(r"""
+        r = \frac{e^{2z}-1}{e^{2z}+1}
+        """)
+
+    # --------------------------------------------------
+    st.markdown("---")
+    st.subheader("🎯 Final Sample Size Planning")
+
+    r_target = st.number_input(
+        "Target Correlation (r)",
+        min_value=-0.95,
+        max_value=0.95,
+        value=0.30,
+        step=0.01,
+        key="corr_r_target"
+    )
+
+    if st.button("Calculate Sample Size (Correlation)", key="corr_calc"):
+
+        if abs(r_target) < 1e-6:
+            st.error("r cannot be 0 for sample size planning. Choose a non-zero target correlation.")
+            st.stop()
+
+        if r_target <= -0.99 or r_target >= 0.99:
+            st.error("r must be between -0.99 and 0.99.")
+            st.stop()
+
+        # Z values
+        if two_sided:
+            Z_alpha = stats.norm.ppf(1 - alpha/2)
+        else:
+            Z_alpha = stats.norm.ppf(1 - alpha)
+
+        Z_beta = stats.norm.ppf(power)
+
+        # Fisher z
+        z = 0.5 * math.log((1 + r_target) / (1 - r_target))
+
+        # Sample size
+        n_raw = ((Z_alpha + Z_beta) ** 2) / (z ** 2) + 3
+        n = math.ceil(n_raw)
+
+        # Dropout adjustment
+        n_adj = math.ceil(n / (1 - dropout_rate))
+
+        # --------------------------------------------------
+        st.markdown("### 🔎 Intermediate Values")
+        st.write(f"Zα = {round(Z_alpha,4)}")
+        st.write(f"Zβ = {round(Z_beta,4)}")
+        st.write(f"Fisher z = {round(z,4)}")
+        st.write(f"n (before dropout) = {n}")
+
+        st.latex(rf"""
+        z = \frac{{1}}{{2}}\ln\left(\frac{{1+({round(r_target,4)})}}{{1-({round(r_target,4)})}}\right)
+        """)
+
+        st.latex(rf"""
+        n =
+        \frac{{({round(Z_alpha,4)} + {round(Z_beta,4)})^2}}{{({round(z,4)})^2}} + 3
+        """)
+
+        st.success(f"Required Sample Size (adjusted): {n_adj}")
+        st.write(f"Before Dropout Adjustment: {n}")
+
+        # --------------------------------------------------
+        st.markdown("### 📄 Copy for Thesis / Manuscript")
+
+        sided_txt = "two-sided" if two_sided else "one-sided"
+
+        st.code(f"""
+Sample size was calculated for detecting a Pearson correlation using Fisher’s z-transformation ({sided_txt}).
+With α={alpha} and power={power}, and assuming a target correlation of r={r_target},
+the required sample size was {n_adj} participants after adjusting for {dropout_rate*100:.1f}% anticipated dropout.
+        """)

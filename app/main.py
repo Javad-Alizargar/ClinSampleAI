@@ -1170,3 +1170,180 @@ Assuming event rates of {p1} and {p2} in the two groups and allocation ratio {ra
 the required sample size was {result['n_group1']} in group 1 and {result['n_group2']} in group 2
 (after adjusting for {dropout_rate*100:.1f}% anticipated dropout).
         """)
+# ==========================================================
+# CASE–CONTROL (Odds Ratio)
+# ==========================================================
+elif study_type == "Case-Control (Odds Ratio)":
+
+    import scipy.stats as stats
+    import math
+
+    st.header("Case–Control Study (Odds Ratio)")
+
+    # --------------------------------------------------
+    with st.expander("📘 When to Use This Design", expanded=True):
+        st.markdown("""
+Used in retrospective observational studies where outcome status is fixed
+and exposure prevalence is compared between cases and controls.
+
+Examples:
+• Smoking exposure among lung cancer cases vs controls
+• Obesity exposure among colorectal cancer cases vs controls
+• Genetic variant frequency among disease vs healthy subjects
+
+Design:
+• Binary exposure
+• Binary outcome
+• Independent case and control groups
+• Effect size expressed as Odds Ratio (OR)
+        """)
+
+    # --------------------------------------------------
+    with st.expander("📐 Mathematical Framework (Log Odds Ratio Method)", expanded=True):
+
+        st.markdown("First compute exposure probability in cases (p₁):")
+
+        st.latex(r"""
+        p_1 =
+        \frac{OR \cdot p_0}
+        {1 - p_0 + OR \cdot p_0}
+        """)
+
+        st.markdown("Then compute sample size for log(OR):")
+
+        st.latex(r"""
+        n_1 =
+        \frac{
+        (Z_{\alpha} + Z_{\beta})^2
+        \left(
+        \frac{1}{p_0(1-p_0)} +
+        \frac{1}{r \cdot p_1(1-p_1)}
+        \right)
+        }
+        {(\ln(OR))^2}
+        """)
+
+        st.markdown("Where:")
+
+        st.latex(r"p_0 = \text{Exposure prevalence in controls}")
+        st.latex(r"p_1 = \text{Exposure prevalence in cases}")
+        st.latex(r"OR = \text{Target odds ratio}")
+        st.latex(r"r = \text{Control-to-case ratio}")
+        st.latex(r"n_2 = r \cdot n_1")
+
+    # --------------------------------------------------
+    with st.expander("📊 Parameter Guidance", expanded=False):
+
+        st.markdown("""
+**p₀ (Control Exposure Proportion)**  
+Must come from:
+• Published literature
+• National prevalence data
+• Pilot data
+• Registry data
+
+---
+
+**Odds Ratio (OR)**  
+Clinically meaningful OR.
+
+Examples:
+• OR = 1.5 → moderate association
+• OR = 2.0 → strong association
+• OR = 3.0 → very strong association
+
+Avoid unrealistic OR inflation.
+
+---
+
+**Allocation Ratio (r)**  
+r = controls / cases
+
+• r = 1 → equal design
+• r = 2–4 → improves efficiency in rare diseases
+• Beyond 4 → minimal statistical gain
+        """)
+
+    # --------------------------------------------------
+    st.markdown("---")
+    st.subheader("🎯 Final Sample Size Planning")
+
+    p0 = st.number_input(
+        "Exposure Proportion in Controls (p₀)",
+        min_value=0.0001,
+        max_value=0.9999,
+        value=0.2,
+        key="cc_p0"
+    )
+
+    OR = st.number_input(
+        "Target Odds Ratio (OR)",
+        min_value=1.01,
+        value=2.0,
+        key="cc_or"
+    )
+
+    ratio = st.number_input(
+        "Control-to-Case Ratio (r)",
+        min_value=0.1,
+        value=1.0,
+        key="cc_ratio"
+    )
+
+    if st.button("Calculate Sample Size", key="cc_calc"):
+
+        if two_sided:
+            Z_alpha = stats.norm.ppf(1 - alpha/2)
+        else:
+            Z_alpha = stats.norm.ppf(1 - alpha)
+
+        Z_beta = stats.norm.ppf(power)
+
+        # Compute p1
+        p1 = (OR * p0) / (1 - p0 + OR * p0)
+
+        ln_or = math.log(OR)
+
+        term = (1 / (p0*(1-p0))) + (1 / (ratio * p1*(1-p1)))
+
+        n1_raw = ((Z_alpha + Z_beta)**2 * term) / (ln_or**2)
+
+        n1 = math.ceil(n1_raw)
+        n2 = math.ceil(ratio * n1)
+
+        # Dropout adjustment
+        n1_adj = math.ceil(n1 / (1 - dropout_rate))
+        n2_adj = math.ceil(n2 / (1 - dropout_rate))
+
+        st.markdown("### 🔎 Intermediate Values")
+
+        st.write(f"Zα = {round(Z_alpha,4)}")
+        st.write(f"Zβ = {round(Z_beta,4)}")
+        st.write(f"Estimated p₁ (cases) = {round(p1,4)}")
+        st.write(f"log(OR) = {round(ln_or,4)}")
+
+        st.latex(rf"""
+        n_1 =
+        \frac{
+        ({round(Z_alpha,4)} + {round(Z_beta,4)})^2
+        \left(
+        \frac{{1}}{{{p0}(1-{p0})}} +
+        \frac{{1}}{{{ratio} \cdot {round(p1,4)}(1-{round(p1,4)})}}
+        \right)
+        }
+        {{{round(ln_or,4)}^2}}
+        """)
+
+        st.success(f"Required Cases (n₁): {n1_adj}")
+        st.success(f"Required Controls (n₂): {n2_adj}")
+        st.write(f"Total Sample Size: {n1_adj + n2_adj}")
+
+        st.markdown("### 📄 Copy for Thesis / Manuscript")
+
+        st.code(f"""
+Sample size was calculated for a case–control study using the log odds ratio method.
+Assuming a control exposure proportion of {p0}, a target odds ratio of {OR},
+α={alpha}, power={power}, and a control-to-case ratio of {ratio},
+the required sample size was {n1_adj} cases and {n2_adj} controls
+(after adjusting for {dropout_rate*100:.1f}% anticipated dropout).
+        """)
